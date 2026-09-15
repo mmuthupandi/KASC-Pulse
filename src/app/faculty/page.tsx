@@ -1,22 +1,70 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
-import { Users, ClipboardCheck, Percent, BookOpen, QrCode, Upload } from "lucide-react";
+import { Users, ClipboardCheck, Percent, BookOpen, QrCode, Download, Loader2 } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { attendanceTrend } from "@/lib/mock-data";
+import { useAuth } from "@/providers/AuthProvider";
+import { collection, query, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function Page() { return <FacultyDashboard />; }
 
 function FacultyDashboard() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    if (!loading && (!user || user.role !== "faculty")) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      // Fetch all attendance records
+      const q = query(collection(db, "attendance"));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        toast.error("No attendance data found to export.");
+        setExporting(false);
+        return;
+      }
+
+      const data = querySnapshot.docs.map(doc => doc.data());
+      
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+      
+      XLSX.writeFile(workbook, `Attendance_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success("Excel exported successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to export Excel.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Welcome, Prof. Verma</h1>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Welcome, {user.name || "Faculty"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Here's what's happening in your classes today.</p>
         </div>
         <Button asChild className="rounded-xl">
@@ -25,7 +73,7 @@ function FacultyDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="My Classes Today" value="4" hint="Next: 10:00 AM" icon={<BookOpen className="h-5 w-5" />} accent="teal" />
+        <StatCard title="My Classes Today" value="5" hint="Periods 1 to 5" icon={<BookOpen className="h-5 w-5" />} accent="teal" />
         <StatCard title="Total Students" value="180" hint="Across 3 sections" icon={<Users className="h-5 w-5" />} accent="magenta" />
         <StatCard title="Avg. Attendance" value="87%" hint="This month" icon={<Percent className="h-5 w-5" />} accent="green" />
         <StatCard title="Pending Reports" value="2" hint="Due this week" icon={<ClipboardCheck className="h-5 w-5" />} accent="orange" />
@@ -50,11 +98,21 @@ function FacultyDashboard() {
           <h3 className="mb-4 font-semibold">Quick Actions</h3>
           <div className="space-y-2">
             <Button asChild variant="outline" className="w-full justify-start rounded-xl">
-              <Link href="/faculty/attendance"><QrCode className="mr-2 h-4 w-4" />Generate QR Code</Link>
+              <Link href="/faculty/attendance"><ClipboardCheck className="mr-2 h-4 w-4" />Mark Period Attendance</Link>
             </Button>
-            <Button variant="outline" className="w-full justify-start rounded-xl">
-              <Upload className="mr-2 h-4 w-4" />Upload Excel
-            </Button>
+            
+            {user.isTutor && (
+              <Button 
+                variant="outline" 
+                className="w-full justify-start rounded-xl border-green-500/30 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
+                onClick={handleExportExcel}
+                disabled={exporting}
+              >
+                {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Export Excel (Tutor Only)
+              </Button>
+            )}
+            
             <Button asChild variant="outline" className="w-full justify-start rounded-xl">
               <Link href="/faculty/students"><Users className="mr-2 h-4 w-4" />View Students</Link>
             </Button>

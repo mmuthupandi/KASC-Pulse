@@ -1,12 +1,27 @@
 "use client";
-import { currentUser } from "@/lib/mock-data";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, BookOpen, GraduationCap, MapPin, Edit3 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User as UserIcon, Mail, Phone, BookOpen, GraduationCap, MapPin, Edit3, Loader2 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/providers/AuthProvider";
 
 export default function ProfilePage() {
+  const { user, loading } = useAuth();
+
+  if (loading || !user) {
+    return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  const initials = user.name?.slice(0, 2).toUpperCase() || "U";
+  // Default values for student data not yet in Firestore
+  const department = "B.Sc Computer Science";
+  const semester = "3rd Semester";
+  const stream = "Aided";
+  const section = "A";
+  const rollNo = "241SC016"; // Placeholder or could be derived
+  const phone = "+91 98765 43210"; // Placeholder
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto w-full">
       <div>
@@ -19,8 +34,7 @@ export default function ProfilePage() {
         <div className="px-4 pb-6 sm:px-6">
           <div className="relative flex justify-between items-end -mt-12 sm:-mt-16 mb-4">
             <Avatar className="h-24 w-24 sm:h-32 sm:w-32 rounded-full border-4 border-background shadow-md bg-white">
-              <AvatarImage src={currentUser.avatar} className="object-cover" />
-              <AvatarFallback className="text-2xl">{currentUser.name.slice(0, 2)}</AvatarFallback>
+              <AvatarFallback className="text-4xl bg-muted text-muted-foreground">{initials}</AvatarFallback>
             </Avatar>
             <Button variant="outline" className="rounded-xl h-9">
               <Edit3 className="w-4 h-4 mr-2" />
@@ -29,10 +43,10 @@ export default function ProfilePage() {
           </div>
           
           <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">{currentUser.name}</h2>
+            <h2 className="text-2xl font-semibold">{user.name}</h2>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Badge variant="secondary" className="rounded-md font-mono text-xs">{currentUser.rollNo}</Badge>
-              <span className="text-sm">• {currentUser.department}</span>
+              <Badge variant="secondary" className="rounded-md font-mono text-xs">{rollNo}</Badge>
+              <span className="text-sm">• {department}</span>
             </div>
           </div>
         </div>
@@ -48,7 +62,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Department</div>
-                <div className="text-sm text-muted-foreground">{currentUser.department}</div>
+                <div className="text-sm text-muted-foreground">{department}</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -57,16 +71,16 @@ export default function ProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Semester & Stream</div>
-                <div className="text-sm text-muted-foreground">{currentUser.semester} ({currentUser.stream})</div>
+                <div className="text-sm text-muted-foreground">{semester} ({stream})</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-                <User className="w-4 h-4" />
+                <UserIcon className="w-4 h-4" />
               </div>
               <div>
                 <div className="text-sm font-medium">Section</div>
-                <div className="text-sm text-muted-foreground">Section {currentUser.section}</div>
+                <div className="text-sm text-muted-foreground">Section {section}</div>
               </div>
             </div>
           </div>
@@ -81,7 +95,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Email Address</div>
-                <div className="text-sm text-muted-foreground">{currentUser.email}</div>
+                <div className="text-sm text-muted-foreground">{user.email}</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -90,7 +104,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Phone Number</div>
-                <div className="text-sm text-muted-foreground">{currentUser.phone}</div>
+                <div className="text-sm text-muted-foreground">{phone}</div>
               </div>
             </div>
             <div className="flex items-start gap-3">

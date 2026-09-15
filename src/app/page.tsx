@@ -98,9 +98,9 @@ function Landing() {
               </div>
               <div className="space-y-3 p-4">
                 {[
-                  { s: "Data Structures", p: 92 },
-                  { s: "Operating Systems", p: 85 },
-                  { s: "Database Management", p: 88 },
+                  { s: "OS", p: 92 },
+                  { s: "DBMS", p: 85 },
+                  { s: "Cloud Computing", p: 88 },
                   { s: "Computer Networks", p: 90 },
                 ].map((r, i) => (
                   <div key={r.s}>

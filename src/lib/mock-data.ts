@@ -1,4 +1,4 @@
-export type Role = "student" | "faculty" | "admin";
+export type Role = "student" | "faculty" | "admin" | "hod";
 
 export const currentUser = {
   name: "Rahul Sharma",
@@ -26,20 +26,28 @@ export const adminUser = {
   avatar: "https://i.pravatar.cc/128?img=15",
 };
 
+export const hodUser = {
+  name: "Dr. K. Senthilkumar",
+  email: "senthilkumar.k@kongunaducollege.ac.in",
+  department: "Computer Science",
+  stream: "Un-Aided",
+  avatar: "https://i.pravatar.cc/128?img=60",
+};
+
 export const todayTimetable = [
-  { time: "09:30 AM", subject: "Java Programming", room: "Lab-4", faculty: "Prof. Verma", status: "present" as const },
-  { time: "10:30 AM", subject: "Software Engineering", room: "A-102", faculty: "Prof. Rao", status: "upcoming" as const },
-  { time: "11:30 AM", subject: "Web Technologies", room: "A-103", faculty: "Prof. Nair", status: "upcoming" as const },
-  { time: "01:15 PM", subject: "Computer Networks", room: "A-104", faculty: "Prof. Khan", status: "upcoming" as const },
+  { time: "09:30 AM", subject: "OS", room: "Lab-4", faculty: "Prof. Verma", status: "present" as const },
+  { time: "10:30 AM", subject: "Software Engineering & Testing", room: "A-102", faculty: "Prof. Rao", status: "upcoming" as const },
+  { time: "11:30 AM", subject: "Cloud Computing", room: "A-103", faculty: "Prof. Nair", status: "upcoming" as const },
+  { time: "01:15 PM", subject: "DBMS", room: "A-104", faculty: "Prof. Khan", status: "upcoming" as const },
 ];
 
 export const subjectAttendance = [
-  { subject: "Java Programming", percentage: 92 },
-  { subject: "Software Engineering", percentage: 85 },
-  { subject: "Web Technologies", percentage: 88 },
-  { subject: "Computer Networks", percentage: 90 },
-  { subject: "Operating Systems", percentage: 80 },
-  { subject: "Multimedia Systems", percentage: 87 },
+  { subject: "OS", percentage: 92 },
+  { subject: "Software Engineering & Testing", percentage: 85 },
+  { subject: "Cloud Computing", percentage: 88 },
+  { subject: "DBMS", percentage: 90 },
+  { subject: "DBMS Lab", percentage: 80 },
+  { subject: "EDC", percentage: 87 },
 ];
 
 export const notifications = [
@@ -152,25 +160,25 @@ export const students = rawStudents.map((s, i) => ({
 
 export const weeklyTimetable = [
   { day: "Monday", slots: [
-    { time: "09:30 - 10:30", subject: "Java Programming", faculty: "Prof. Verma", room: "Lab-4" },
-    { time: "10:30 - 11:30", subject: "Software Engineering", faculty: "Prof. Rao", room: "A-102" },
-    { time: "11:45 - 12:45", subject: "Web Technologies", faculty: "Prof. Nair", room: "A-103" },
+    { time: "09:30 - 10:30", subject: "OS", faculty: "Prof. Verma", room: "Lab-4" },
+    { time: "10:30 - 11:30", subject: "Software Engineering & Testing", faculty: "Prof. Rao", room: "A-102" },
+    { time: "11:45 - 12:45", subject: "Cloud Computing", faculty: "Prof. Nair", room: "A-103" },
   ]},
   { day: "Tuesday", slots: [
-    { time: "09:30 - 10:30", subject: "Computer Networks", faculty: "Prof. Khan", room: "A-104" },
-    { time: "10:30 - 11:30", subject: "Multimedia Systems", faculty: "Prof. Iyer", room: "Lab-2" },
+    { time: "09:30 - 10:30", subject: "DBMS", faculty: "Prof. Khan", room: "A-104" },
+    { time: "10:30 - 11:30", subject: "DBMS Lab", faculty: "Prof. Iyer", room: "Lab-2" },
   ]},
   { day: "Wednesday", slots: [
-    { time: "09:30 - 10:30", subject: "Operating Systems", faculty: "Prof. Bose", room: "A-201" },
-    { time: "10:30 - 11:30", subject: "Java Lab", faculty: "Prof. Verma", room: "Lab-4" },
+    { time: "09:30 - 10:30", subject: "EDC", faculty: "Prof. Bose", room: "A-201" },
+    { time: "10:30 - 11:30", subject: "OS", faculty: "Prof. Verma", room: "Lab-4" },
   ]},
   { day: "Thursday", slots: [
-    { time: "09:30 - 10:30", subject: "Software Engineering", faculty: "Prof. Rao", room: "A-102" },
-    { time: "11:45 - 12:45", subject: "Web Technologies", faculty: "Prof. Nair", room: "A-103" },
+    { time: "09:30 - 10:30", subject: "Software Engineering & Testing", faculty: "Prof. Rao", room: "A-102" },
+    { time: "11:45 - 12:45", subject: "Cloud Computing", faculty: "Prof. Nair", room: "A-103" },
   ]},
   { day: "Friday", slots: [
-    { time: "09:30 - 10:30", subject: "Multimedia Systems", faculty: "Prof. Iyer", room: "Lab-2" },
-    { time: "01:15 - 02:15", subject: "Computer Networks", faculty: "Prof. Khan", room: "A-104" },
+    { time: "09:30 - 10:30", subject: "DBMS Lab", faculty: "Prof. Iyer", room: "Lab-2" },
+    { time: "01:15 - 02:15", subject: "DBMS", faculty: "Prof. Khan", room: "A-104" },
   ]},
 ];
 
@@ -192,3 +200,68 @@ export const attendanceTrend = Array.from({ length: 12 }).map((_, i) => ({
   day: `${i * 2 + 1} May`,
   value: 70 + Math.round(Math.sin(i / 2) * 10 + Math.random() * 8),
 }));
+
+export const departmentClasses = [
+  { id: "class-1", name: "I B.Sc. Computer Science - A", stream: "Aided", strength: 52, avgAttendance: 88.5 },
+  { id: "class-2", name: "II B.Sc. Computer Science - A", stream: "Aided", strength: 50, avgAttendance: 83.1 },
+  { id: "class-3", name: "III B.Sc. Computer Science - A", stream: "Aided", strength: 48, avgAttendance: 85.9 },
+  { id: "class-4", name: "I B.Sc. Computer Science - B", stream: "Un-Aided", strength: 55, avgAttendance: 81.2 },
+  { id: "class-5", name: "II B.Sc. Computer Science - B", stream: "Un-Aided", strength: 53, avgAttendance: 79.8 },
+  { id: "class-6", name: "III B.Sc. Computer Science - B", stream: "Un-Aided", strength: 50, avgAttendance: 74.5 },
+];
+
+export const hodPendingApprovals = [
+  {
+    id: "req-1",
+    studentName: "MUTHUPANDI.M",
+    rollNo: "241SC016",
+    class: "III B.Sc. CS - B",
+    type: "OD" as const,
+    reason: "Inter-Collegiate Sports Meet (Athletics)",
+    duration: "05 Aug 2026 - 06 Aug 2026 (2 Days)",
+    status: "pending" as const,
+    attachment: "sports_certificate_2026.pdf",
+  },
+  {
+    id: "req-2",
+    studentName: "ANGEL JASMINE R",
+    rollNo: "241SC001",
+    class: "III B.Sc. CS - B",
+    type: "Leave" as const,
+    reason: "Severe Typhoid Fever (Medical treatment)",
+    duration: "01 Aug 2026 - 04 Aug 2026 (4 Days)",
+    status: "pending" as const,
+    attachment: "medical_certificate.pdf",
+  },
+  {
+    id: "req-3",
+    studentName: "SATHISHKUMAR.S",
+    rollNo: "241SC003",
+    class: "III B.Sc. CS - B",
+    type: "OD" as const,
+    reason: "National Level Hackathon, CIT Coimbatore",
+    duration: "07 Aug 2026 (1 Day)",
+    status: "pending" as const,
+    attachment: "hackathon_id_card.pdf",
+  },
+  {
+    id: "req-4",
+    studentName: "SENTHILKUMAR.G",
+    rollNo: "241SC004",
+    class: "III B.Sc. CS - B",
+    type: "Leave" as const,
+    reason: "Family functions / Marriage attendance",
+    duration: "10 Aug 2026 (1 Day)",
+    status: "pending" as const,
+    attachment: null,
+  },
+];
+
+export const condonationCandidates = [
+  { id: "cand-1", name: "VINEESHA M", rollNo: "241SC007", attendance: 72.4, hoursAttended: 246, hoursConducted: 340, recommended: false },
+  { id: "cand-2", name: "ISACC.G", rollNo: "241SC010", attendance: 68.9, hoursAttended: 234, hoursConducted: 340, recommended: false },
+  { id: "cand-3", name: "PRASANNA.M", rollNo: "241SC013", attendance: 70.1, hoursAttended: 238, hoursConducted: 340, recommended: false },
+  { id: "cand-4", name: "LOKESH.N", rollNo: "241SC018", attendance: 74.2, hoursAttended: 252, hoursConducted: 340, recommended: true },
+  { id: "cand-5", name: "DARWIN.E", rollNo: "241SC034", attendance: 67.5, hoursAttended: 229, hoursConducted: 340, recommended: false },
+  { id: "cand-6", name: "SRIRAM.PK", rollNo: "241SC046", attendance: 71.8, hoursAttended: 244, hoursConducted: 340, recommended: false },
+];

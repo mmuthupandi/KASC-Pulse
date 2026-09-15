@@ -1,45 +1,84 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
 import { motion } from "motion/react";
-import {
-  TrendingUp,
-  CalendarCheck,
-  CalendarX,
-  BookOpen,
-  Download,
-  FileText,
-  Calendar,
-  ClipboardCheck,
-} from "lucide-react";
+import { TrendingUp, CalendarCheck, CalendarX, BookOpen, FileText, Calendar, ClipboardCheck, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
 import { Heatmap } from "@/components/heatmap";
-import {
-  currentUser,
-  todayTimetable,
-  subjectAttendance,
-  notifications,
-} from "@/lib/mock-data";
-
-import { useEffect } from "react";
+import { subjectAttendance, notifications } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/providers/AuthProvider";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function Page() { 
   return <StudentDashboard />; 
 }
 
 function StudentDashboard() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  
+  // 5 periods timetable template
+  const [timetable, setTimetable] = useState([
+    { period: 1, time: "09:00 AM - 10:00 AM", subject: "OS", room: "L-301", faculty: "Prof. Verma", status: "upcoming" },
+    { period: 2, time: "10:00 AM - 11:00 AM", subject: "Software Engineering & Testing", room: "L-302", faculty: "Dr. Sharma", status: "upcoming" },
+    { period: 3, time: "11:00 AM - 12:00 PM", subject: "Cloud Computing", room: "L-303", faculty: "Prof. Singh", status: "upcoming" },
+    { period: 4, time: "01:00 PM - 02:00 PM", subject: "DBMS", room: "L-304", faculty: "Dr. Gupta", status: "upcoming" },
+    { period: 5, time: "02:00 PM - 03:00 PM", subject: "EDC", room: "L-305", faculty: "Prof. Kumar", status: "upcoming" },
+  ]);
+
+  useEffect(() => {
+    if (!loading && (!user || user.role !== "student")) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user?.uid) {
+      const today = new Date().toISOString().split('T')[0];
+      const q = query(
+        collection(db, "attendance"),
+        where("studentId", "==", user.uid)
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        // Filter by date in memory to avoid needing a composite index in Firestore
+        const attendanceRecords = snapshot.docs
+          .map(doc => doc.data())
+          .filter(r => r.date === today);
+        
+        setTimetable(prev => prev.map(slot => {
+          const record = attendanceRecords.find(r => r.period === slot.period);
+          if (record) {
+            return { ...slot, status: record.status }; // present or absent
+          }
+          return { ...slot, status: "upcoming" };
+        }));
+      });
+
+      return () => unsubscribe();
+    }
+  }, [user]);
+
+  if (loading || !user) {
+    return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  const attended = timetable.filter(t => t.status === "present").length;
+  const missed = timetable.filter(t => t.status === "absent").length;
+
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-          Good morning, {currentUser.name.split(" ")[0]}! 👋
+          Good morning, {user.name?.split(" ")[0] || "Student"}! 👋
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tuesday, 21 May 2024 · {currentUser.department} ({currentUser.stream}) · {currentUser.semester}
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
 
@@ -59,22 +98,22 @@ function StudentDashboard() {
             <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5" />
           </Card>
         </motion.div>
-        <StatCard title="Classes Attended" value="74" hint="of 83" icon={<CalendarCheck className="h-5 w-5" />} accent="green" />
-        <StatCard title="Classes Missed" value="9" hint="of 83" icon={<CalendarX className="h-5 w-5" />} accent="red" />
-        <StatCard title="Subjects" value="6" hint="This semester" icon={<BookOpen className="h-5 w-5" />} accent="yellow" />
+        <StatCard title="Classes Attended Today" value={attended.toString()} hint="out of 5" icon={<CalendarCheck className="h-5 w-5" />} accent="green" />
+        <StatCard title="Classes Missed Today" value={missed.toString()} hint="out of 5" icon={<CalendarX className="h-5 w-5" />} accent="red" />
+        <StatCard title="Subjects" value="5" hint="This semester" icon={<BookOpen className="h-5 w-5" />} accent="yellow" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">Today's Timetable</h3>
+            <h3 className="font-semibold">Today's Timetable (5 Periods)</h3>
             <Link href="/student/timetable" className="text-sm text-primary hover:underline">View full timetable</Link>
           </div>
           <div className="space-y-2">
-            {todayTimetable.map((row) => (
-              <div key={row.time} className="flex items-center justify-between rounded-xl border p-3 transition hover:bg-muted/40">
+            {timetable.map((row) => (
+              <div key={row.period} className="flex items-center justify-between rounded-xl border p-3 transition hover:bg-muted/40">
                 <div className="flex items-center gap-3">
-                  <div className="w-20 text-sm font-medium text-muted-foreground">{row.time}</div>
+                  <div className="w-24 text-sm font-medium text-muted-foreground">{row.time}</div>
                   <div>
                     <div className="font-medium">{row.subject}</div>
                     <div className="text-xs text-muted-foreground">{row.room} · {row.faculty}</div>
@@ -85,10 +124,12 @@ function StudentDashboard() {
                   className={
                     row.status === "present"
                       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+                      : row.status === "absent"
+                      ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400"
                       : "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400"
                   }
                 >
-                  {row.status === "present" ? "Present" : "Upcoming"}
+                  {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
                 </Badge>
               </div>
             ))}
@@ -101,7 +142,7 @@ function StudentDashboard() {
             <span className="text-xs text-muted-foreground">This semester</span>
           </div>
           <div className="space-y-4">
-            {subjectAttendance.map((s, i) => (
+            {subjectAttendance.slice(0, 5).map((s, i) => (
               <div key={s.subject}>
                 <div className="mb-1.5 flex items-center justify-between text-sm">
                   <span>{s.subject}</span>
@@ -112,7 +153,7 @@ function StudentDashboard() {
                     className="h-full rounded-full"
                     style={{
                       width: `${s.percentage}%`,
-                      background: `var(--color-${["primary", "secondary", "warning", "destructive", "primary", "secondary"][i % 6]})`,
+                      background: `var(--color-${["primary", "secondary", "warning", "destructive", "primary"][i % 5]})`,
                     }}
                   />
                 </div>
@@ -154,29 +195,8 @@ function StudentDashboard() {
             <Button asChild variant="outline" className="rounded-xl">
               <Link href="/student/leave"><FileText className="mr-2 h-4 w-4" />Apply Leave</Link>
             </Button>
-            <Button asChild variant="outline" className="rounded-xl">
+            <Button asChild variant="outline" className="rounded-xl col-span-2">
               <Link href="/student/timetable"><Calendar className="mr-2 h-4 w-4" />Timetable</Link>
-            </Button>
-            <Button variant="outline" className="rounded-xl" onClick={() => {
-              import("sonner").then(({ toast }) => {
-                toast.loading("Generating Excel report...", { id: "export" });
-                setTimeout(() => {
-                  const csvContent = "Subject,Percentage\\nData Structures,92%\\nOperating Systems,85%\\nDatabase Management,88%\\nComputer Networks,90%\\n";
-                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                  const link = document.createElement("a");
-                  const url = URL.createObjectURL(blob);
-                  link.setAttribute("href", url);
-                  link.setAttribute("download", "Attendance_Report.csv");
-                  link.style.visibility = 'hidden';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  
-                  toast.success("Excel report downloaded successfully!", { id: "export" });
-                }, 1500);
-              });
-            }}>
-              <Download className="mr-2 h-4 w-4" />Report
             </Button>
           </div>
         </Card>

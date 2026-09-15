@@ -56,9 +56,24 @@ const adminNav = [
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
+const hodNav = [
+  { title: "Dashboard", url: "/hod", icon: LayoutDashboard },
+  { title: "Approvals", url: "/hod/approvals", icon: ClipboardCheck },
+  { title: "Dept Logs", url: "/hod/logs", icon: FileBarChart },
+  { title: "Condonation", url: "/hod/condonation", icon: GraduationCap },
+  { title: "Profile", url: "/hod/profile", icon: User },
+];
+
 export function AppBottomNav({ role }: { role: Role }) {
   const pathname = usePathname();
-  const items = role === "student" ? studentNav : role === "faculty" ? facultyNav : adminNav;
+  const items =
+    role === "student"
+      ? studentNav
+      : role === "faculty"
+        ? facultyNav
+        : role === "hod"
+          ? hodNav
+          : adminNav;
 
   // On very small screens, 7 items might be tight, but we'll use overflow-x-auto or let it be compact
   return (

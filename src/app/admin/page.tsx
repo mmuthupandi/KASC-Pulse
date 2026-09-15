@@ -76,11 +76,11 @@ function AdminDashboard() {
           <h3 className="font-semibold">Low Attendance Alerts</h3>
           <span className="text-xs text-muted-foreground">Below 75%</span>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="space-y-4">
           {[
-            { s: "Data Structures (CS-201)", g: "3rd Sem A", v: 72 },
-            { s: "Database Management (CS-303)", g: "3rd Sem B", v: 74 },
-            { s: "Thermodynamics (ME-201)", g: "2nd Sem A", v: 71 },
+            { s: "OS", g: "3rd Sem A", v: 72 },
+            { s: "DBMS Lab", g: "1st Sem B", v: 68 },
+            { s: "Cloud Computing", g: "5th Sem A", v: 74 },
           ].map((a) => (
             <div key={a.s} className="flex items-center justify-between rounded-xl border p-3">
               <div>

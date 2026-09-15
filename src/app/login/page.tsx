@@ -1,24 +1,62 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
 import { useState } from "react";
 import { motion } from "motion/react";
-import { GraduationCap, Mail, Lock, ArrowRight, ShieldCheck, Users } from "lucide-react";
+import { GraduationCap, Mail, Lock, ArrowRight, ShieldCheck, Users, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-
 import { KASCHeader } from "@/components/kasc-header";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { toast } from "sonner";
 
 export default function Page() { return <Login />; }
 
 function Login() {
   const [role, setRole] = useState<"student" | "faculty" | "admin">("student");
-  const target = `/${role}`;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please enter email and password");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Verify role in Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.role !== role) {
+          toast.error(`You are registered as a ${userData.role}, not a ${role}.`);
+          auth.signOut();
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      toast.success("Welcome back!");
+      router.push(`/${role}`);
+    } catch (error: any) {
+      toast.error("Invalid credentials or account does not exist.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <KASCHeader />
@@ -86,12 +124,13 @@ function Login() {
                 <TabsTrigger value="faculty" className="rounded-lg">Faculty</TabsTrigger>
                 <TabsTrigger value="admin" className="rounded-lg">Admin</TabsTrigger>
               </TabsList>
-              <TabsContent value={role} className="mt-6 space-y-4">
+              
+              <form onSubmit={handleLogin} className="mt-6 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input id="email" type="email" placeholder="you@kasc.ac.in" className="h-11 rounded-xl pl-9" defaultValue={`${role}@kasc.ac.in`} />
+                    <Input id="email" type="email" placeholder="you@kasc.ac.in" className="h-11 rounded-xl pl-9" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -101,33 +140,24 @@ function Login() {
                   </div>
                   <div className="relative">
                     <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input id="password" type="password" placeholder="••••••••" className="h-11 rounded-xl pl-9" defaultValue="password" />
+                    <Input id="password" type="password" placeholder="••••••••" className="h-11 rounded-xl pl-9" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="remember" defaultChecked />
                   <Label htmlFor="remember" className="text-sm font-normal">Remember me for 30 days</Label>
                 </div>
-                <Button asChild size="lg" className="h-11 w-full rounded-xl">
-                  <Link href={target}>
-                    Sign in <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
+                <Button type="submit" size="lg" className="h-11 w-full rounded-xl" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Sign in <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                <div className="relative py-2 text-center text-xs text-muted-foreground">
-                  <span className="relative z-10 bg-background px-2">OR CONTINUE WITH</span>
-                  <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button variant="outline" className="h-11 rounded-xl">Google</Button>
-                  <Button variant="outline" className="h-11 rounded-xl">Microsoft</Button>
-                </div>
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-center text-sm text-muted-foreground mt-4">
                   Don't have an account?{" "}
                   <Link href="/register" className="font-medium text-primary hover:underline">
                     Create one
                   </Link>
                 </p>
-              </TabsContent>
+              </form>
             </Tabs>
           </motion.div>
         </div>

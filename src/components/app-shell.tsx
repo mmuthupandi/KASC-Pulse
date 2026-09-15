@@ -7,16 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Role } from "@/lib/mock-data";
-import { currentUser, facultyUser, adminUser } from "@/lib/mock-data";
+import { useAuth } from "@/providers/AuthProvider";
 
 export function AppShell({ role, children }: { role: Role; children: ReactNode }) {
-  const user = role === "student" ? currentUser : role === "faculty" ? facultyUser : adminUser;
+  const { user } = useAuth();
+
+  const name = user?.name || "Loading...";
+  
   const subtitle =
     role === "student"
-      ? currentUser.department + " · " + currentUser.semester
+      ? "B.Sc CS · 3rd Semester"
       : role === "faculty"
-        ? facultyUser.department
-        : "Administrator";
+        ? "Computer Science Dept."
+        : role === "hod"
+          ? "Computer Science Dept. · HOD"
+          : "Administrator";
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background overflow-x-hidden">
@@ -39,11 +44,10 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
           </Button>
           <div className="flex items-center gap-2">
             <Avatar className="h-9 w-9 border shadow-sm">
-              <AvatarImage src={user.avatar} />
-              <AvatarFallback>{user.name.slice(0, 2)}</AvatarFallback>
+              <AvatarFallback>{user?.name?.slice(0, 2).toUpperCase() || "U"}</AvatarFallback>
             </Avatar>
             <div className="hidden text-right text-sm leading-tight sm:block">
-              <div className="font-medium">{user.name}</div>
+              <div className="font-medium truncate max-w-[150px]">{name}</div>
               <div className="text-xs text-muted-foreground">{subtitle}</div>
             </div>
           </div>
