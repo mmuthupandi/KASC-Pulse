@@ -39,7 +39,7 @@ function TakeAttendance() {
       if (!date || !period || !classId) return;
       setFetching(true);
 
-      let currentStudents = students;
+      let currentStudents: any[] = students;
       try {
         // Fetch real students from Firebase
         const qStudents = query(collection(db, "users"), where("role", "==", "student"));
