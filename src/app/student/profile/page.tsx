@@ -2,12 +2,15 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User as UserIcon, Mail, Phone, BookOpen, GraduationCap, MapPin, Edit3, Loader2 } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { User as UserIcon, Mail, Phone, BookOpen, GraduationCap, MapPin, Edit3, Loader2, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/providers/AuthProvider";
 
 export default function ProfilePage() {
   const { user, loading } = useAuth();
+  const router = useRouter();
 
   if (loading || !user) {
     return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -118,6 +121,20 @@ export default function ProfilePage() {
             </div>
           </div>
         </Card>
+      </div>
+
+      <div className="pt-4 flex justify-center">
+        <Button 
+          variant="destructive" 
+          className="w-full sm:w-auto rounded-xl shadow-sm px-8" 
+          onClick={async () => {
+            await auth.signOut();
+            router.push("/login");
+          }}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Sign out of KASC Pulse
+        </Button>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-export type Role = "student" | "faculty" | "admin" | "hod";
+export type Role = "student" | "faculty" | "admin" | "hod" | "parent";
 
 export const currentUser = {
   name: "Rahul Sharma",

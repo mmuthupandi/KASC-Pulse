@@ -64,6 +64,11 @@ const hodNav = [
   { title: "Profile", url: "/hod/profile", icon: User },
 ];
 
+const parentNav = [
+  { title: "Dashboard", url: "/parent", icon: LayoutDashboard },
+  { title: "Profile", url: "/parent/profile", icon: User },
+];
+
 export function AppBottomNav({ role }: { role: Role }) {
   const pathname = usePathname();
   const items =
@@ -71,9 +76,11 @@ export function AppBottomNav({ role }: { role: Role }) {
       ? studentNav
       : role === "faculty"
         ? facultyNav
-        : role === "hod"
-          ? hodNav
-          : adminNav;
+        : role === "parent"
+          ? parentNav
+          : role === "hod"
+            ? hodNav
+            : adminNav;
 
   // On very small screens, 7 items might be tight, but we'll use overflow-x-auto or let it be compact
   return (

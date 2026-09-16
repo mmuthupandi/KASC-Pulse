@@ -8,7 +8,7 @@ import { auth, db } from "@/lib/firebase";
 interface AppUser {
   uid: string;
   email: string | null;
-  role: "student" | "faculty" | "admin";
+  role: "student" | "faculty" | "admin" | "parent";
   name?: string;
   isTutor?: boolean;
   classId?: string;

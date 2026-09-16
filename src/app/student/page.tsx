@@ -30,6 +30,14 @@ function StudentDashboard() {
     { period: 4, time: "01:00 PM - 02:00 PM", subject: "DBMS", room: "L-304", faculty: "Dr. Gupta", status: "upcoming" },
     { period: 5, time: "02:00 PM - 03:00 PM", subject: "EDC", room: "L-305", faculty: "Prof. Kumar", status: "upcoming" },
   ]);
+  const [overallPercentage, setOverallPercentage] = useState(100);
+  const [dynamicSubjectAttendance, setDynamicSubjectAttendance] = useState([
+    { subject: "OS", percentage: 100 },
+    { subject: "Software Engineering & Testing", percentage: 100 },
+    { subject: "Cloud Computing", percentage: 100 },
+    { subject: "DBMS", percentage: 100 },
+    { subject: "EDC", percentage: 100 }
+  ]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "student")) {
@@ -46,10 +54,39 @@ function StudentDashboard() {
       );
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
+        const allRecords = snapshot.docs.map(doc => doc.data());
+        
+        if (allRecords.length > 0) {
+          const totalPresents = allRecords.filter(r => r.status === "present").length;
+          setOverallPercentage(Math.round((totalPresents / allRecords.length) * 100));
+        } else {
+          setOverallPercentage(100);
+        }
+
+        // Calculate subject-wise attendance based on fixed periods
+        const subjectStats: Record<number, { present: number, total: number, subject: string }> = {
+          1: { present: 0, total: 0, subject: "OS" },
+          2: { present: 0, total: 0, subject: "Software Engineering & Testing" },
+          3: { present: 0, total: 0, subject: "Cloud Computing" },
+          4: { present: 0, total: 0, subject: "DBMS" },
+          5: { present: 0, total: 0, subject: "EDC" },
+        };
+
+        allRecords.forEach(r => {
+          if (subjectStats[r.period]) {
+            subjectStats[r.period].total++;
+            if (r.status === "present") subjectStats[r.period].present++;
+          }
+        });
+
+        const newSubjectData = Object.values(subjectStats).map(s => ({
+          subject: s.subject,
+          percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 100
+        }));
+        setDynamicSubjectAttendance(newSubjectData);
+
         // Filter by date in memory to avoid needing a composite index in Firestore
-        const attendanceRecords = snapshot.docs
-          .map(doc => doc.data())
-          .filter(r => r.date === today);
+        const attendanceRecords = allRecords.filter(r => r.date === today);
         
         setTimetable(prev => prev.map(slot => {
           const record = attendanceRecords.find(r => r.period === slot.period);
@@ -87,13 +124,13 @@ function StudentDashboard() {
           <Card className="relative overflow-hidden bg-primary p-5 text-primary-foreground shadow-lg">
             <div className="text-sm text-white/80">Overall Attendance</div>
             <div className="mt-1 flex items-end gap-3">
-              <div className="text-4xl font-semibold">89%</div>
+              <div className="text-4xl font-semibold">{overallPercentage}%</div>
               <div className="mb-1 flex items-center text-xs text-white/80">
-                <TrendingUp className="mr-1 h-3 w-3" /> 6% this month
+                <TrendingUp className="mr-1 h-3 w-3" />
               </div>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/25">
-              <div className="h-full rounded-full bg-secondary" style={{ width: "89%" }} />
+              <div className="h-full rounded-full bg-secondary" style={{ width: `${overallPercentage}%` }} />
             </div>
             <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5" />
           </Card>
@@ -142,7 +179,7 @@ function StudentDashboard() {
             <span className="text-xs text-muted-foreground">This semester</span>
           </div>
           <div className="space-y-4">
-            {subjectAttendance.slice(0, 5).map((s, i) => (
+            {dynamicSubjectAttendance.map((s, i) => (
               <div key={s.subject}>
                 <div className="mb-1.5 flex items-center justify-between text-sm">
                   <span>{s.subject}</span>

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/stat-card";
 import { CalendarCheck, CalendarX, Percent } from "lucide-react";
@@ -10,17 +10,21 @@ import { Heatmap } from "@/components/heatmap";
 export default function Page() { return <AttendancePage />; }
 
 function AttendancePage() {
-  const days = Array.from({ length: 35 }).map((_, i) => {
-    const rand = Math.random();
-    const d = i - 2;
-    if (d < 1 || d > 31) return { day: null, status: "none" };
-    const dow = (d + 2) % 7;
-    if (dow === 0 || dow === 6) return { day: d, status: "none" };
-    let status: "present" | "absent" | "leave" | "none" = "present";
-    if (rand > 0.9) status = "absent";
-    else if (rand > 0.82) status = "leave";
-    return { day: d, status };
-  });
+  const [days, setDays] = useState<any[]>([]);
+
+  useEffect(() => {
+    setDays(Array.from({ length: 35 }).map((_, i) => {
+      const rand = Math.random();
+      const d = i - 2;
+      if (d < 1 || d > 31) return { day: null, status: "none" };
+      const dow = (d + 2) % 7;
+      if (dow === 0 || dow === 6) return { day: d, status: "none" };
+      let status: "present" | "absent" | "leave" | "none" = "present";
+      if (rand > 0.9) status = "absent";
+      else if (rand > 0.82) status = "leave";
+      return { day: d, status };
+    }));
+  }, []);
 
   const color = (s: string) =>
     s === "present"

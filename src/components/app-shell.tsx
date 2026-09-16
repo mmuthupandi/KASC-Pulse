@@ -1,16 +1,27 @@
 "use client";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, User, Settings, LogOut } from "lucide-react";
 import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { AppBottomNav } from "./app-sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import type { Role } from "@/lib/mock-data";
 import { useAuth } from "@/providers/AuthProvider";
+import { auth } from "@/lib/firebase";
 
 export function AppShell({ role, children }: { role: Role; children: ReactNode }) {
   const { user } = useAuth();
+  const router = useRouter();
 
   const name = user?.name || "Loading...";
   
@@ -42,15 +53,43 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
             <Bell className="h-5 w-5" />
             <Badge className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full p-0 text-[10px]">3</Badge>
           </Button>
-          <div className="flex items-center gap-2">
-            <Avatar className="h-9 w-9 border shadow-sm">
-              <AvatarFallback>{user?.name?.slice(0, 2).toUpperCase() || "U"}</AvatarFallback>
-            </Avatar>
-            <div className="hidden text-right text-sm leading-tight sm:block">
-              <div className="font-medium truncate max-w-[150px]">{name}</div>
-              <div className="text-xs text-muted-foreground">{subtitle}</div>
-            </div>
-          </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1.5 pr-3 rounded-full transition-colors">
+                <Avatar className="h-9 w-9 border shadow-sm">
+                  <AvatarFallback>{user?.name?.slice(0, 2).toUpperCase() || "U"}</AvatarFallback>
+                </Avatar>
+                <div className="hidden text-right text-sm leading-tight sm:block">
+                  <div className="font-medium truncate max-w-[150px]">{name}</div>
+                  <div className="text-xs text-muted-foreground">{subtitle}</div>
+                </div>
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-xl">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push(`/${role}/profile`)}>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/${role}/settings`)}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={async () => {
+                  await auth.signOut();
+                  router.push("/login");
+                }}
+                className="text-rose-600 focus:text-rose-600 dark:text-rose-400 dark:focus:text-rose-400"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
