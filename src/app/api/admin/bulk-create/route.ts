@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 
 export interface BulkUserInput {
   name: string;
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     const results: BulkCreateResult[] = [];
-    const batch = adminDb.batch();
+    const batch = getAdminDb().batch();
     const successEntries: Array<{ uid: string; data: Record<string, unknown> }> = [];
 
     for (const u of users) {
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
       try {
         // Create Firebase Auth user via Admin SDK
-        const userRecord = await adminAuth.createUser({
+        const userRecord = await getAdminAuth().createUser({
           email: u.email.trim().toLowerCase(),
           password: u.password,
           displayName: u.name.trim(),
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
           userData.isTutor = u.isTutor ?? false;
         }
 
-        const ref = adminDb.collection("users").doc(userRecord.uid);
+        const ref = getAdminDb().collection("users").doc(userRecord.uid);
         batch.set(ref, userData);
         successEntries.push({ uid: userRecord.uid, data: userData });
 
