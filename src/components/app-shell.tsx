@@ -24,12 +24,12 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   const router = useRouter();
 
   const name = user?.name || "Loading...";
-  
+
   const subtitle =
     role === "student"
-      ? "B.Sc CS · 3rd Semester"
+      ? [user?.department, user?.semester].filter(Boolean).join(" · ") || "Student"
       : role === "faculty"
-        ? "Computer Science Dept."
+        ? [user?.department, user?.designation].filter(Boolean).join(" · ") || "Faculty"
         : role === "hod"
           ? "Computer Science Dept. · HOD"
           : "Administrator";

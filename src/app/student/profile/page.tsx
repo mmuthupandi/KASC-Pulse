@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
-import { User as UserIcon, Mail, Phone, BookOpen, GraduationCap, MapPin, Edit3, Loader2, LogOut } from "lucide-react";
+import { Mail, Phone, BookOpen, GraduationCap, MapPin, Edit3, Loader2, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -17,13 +17,12 @@ export default function ProfilePage() {
   }
 
   const initials = user.name?.slice(0, 2).toUpperCase() || "U";
-  // Default values for student data not yet in Firestore
-  const department = "B.Sc Computer Science";
-  const semester = "3rd Semester";
-  const stream = "Aided";
-  const section = "A";
-  const rollNo = "241SC016"; // Placeholder or could be derived
-  const phone = "+91 98765 43210"; // Placeholder
+
+  // Pull real data from Firestore (set during bulk create)
+  const department = user.department || "—";
+  const semester = user.semester || "—";
+  const stream = user.stream || "—";
+  const rollNo = user.rollNo || "—";
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto w-full">
@@ -77,15 +76,6 @@ export default function ProfilePage() {
                 <div className="text-sm text-muted-foreground">{semester} ({stream})</div>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-                <UserIcon className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-sm font-medium">Section</div>
-                <div className="text-sm text-muted-foreground">Section {section}</div>
-              </div>
-            </div>
           </div>
         </Card>
 
@@ -107,7 +97,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Phone Number</div>
-                <div className="text-sm text-muted-foreground">{phone}</div>
+                <div className="text-sm text-muted-foreground">Not provided</div>
               </div>
             </div>
             <div className="flex items-start gap-3">

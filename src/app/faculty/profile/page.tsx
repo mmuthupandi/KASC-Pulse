@@ -1,12 +1,29 @@
 "use client";
-import { facultyUser } from "@/lib/mock-data";
+import { useAuth } from "@/providers/AuthProvider";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, BookOpen, GraduationCap, MapPin, Edit3 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User, Mail, Phone, BookOpen, GraduationCap, MapPin, Edit3, Loader2, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function FacultyProfilePage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  if (loading || !user) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const initials = user.name?.slice(0, 2).toUpperCase() || "FA";
+  const department = user.department || "—";
+  const designation = user.designation || "—";
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto w-full">
       <div>
@@ -19,20 +36,19 @@ export default function FacultyProfilePage() {
         <div className="px-4 pb-6 sm:px-6">
           <div className="relative flex justify-between items-end -mt-12 sm:-mt-16 mb-4">
             <Avatar className="h-24 w-24 sm:h-32 sm:w-32 rounded-full border-4 border-background shadow-md bg-white">
-              <AvatarImage src={facultyUser.avatar} className="object-cover" />
-              <AvatarFallback className="text-2xl">{facultyUser.name.slice(0, 2)}</AvatarFallback>
+              <AvatarFallback className="text-2xl bg-muted text-muted-foreground">{initials}</AvatarFallback>
             </Avatar>
             <Button variant="outline" className="rounded-xl h-9">
               <Edit3 className="w-4 h-4 mr-2" />
               Edit
             </Button>
           </div>
-          
+
           <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">{facultyUser.name}</h2>
+            <h2 className="text-2xl font-semibold">{user.name}</h2>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Badge variant="secondary" className="rounded-md font-mono text-xs">Faculty ID: F-402</Badge>
-              <span className="text-sm">• {facultyUser.department}</span>
+              <Badge variant="secondary" className="rounded-md text-xs">{designation}</Badge>
+              <span className="text-sm">• {department}</span>
             </div>
           </div>
         </div>
@@ -48,7 +64,7 @@ export default function FacultyProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Department</div>
-                <div className="text-sm text-muted-foreground">{facultyUser.department}</div>
+                <div className="text-sm text-muted-foreground">{department}</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -56,8 +72,8 @@ export default function FacultyProfilePage() {
                 <GraduationCap className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-sm font-medium">Stream</div>
-                <div className="text-sm text-muted-foreground">{facultyUser.stream}</div>
+                <div className="text-sm font-medium">Designation</div>
+                <div className="text-sm text-muted-foreground">{designation}</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -65,8 +81,8 @@ export default function FacultyProfilePage() {
                 <User className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-sm font-medium">Designation</div>
-                <div className="text-sm text-muted-foreground">Assistant Professor</div>
+                <div className="text-sm font-medium">Class Tutor</div>
+                <div className="text-sm text-muted-foreground">{user.isTutor ? "Yes" : "No"}</div>
               </div>
             </div>
           </div>
@@ -81,7 +97,7 @@ export default function FacultyProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Email Address</div>
-                <div className="text-sm text-muted-foreground">{facultyUser.email}</div>
+                <div className="text-sm text-muted-foreground">{user.email}</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -90,7 +106,7 @@ export default function FacultyProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Phone Number</div>
-                <div className="text-sm text-muted-foreground">+91 98765 00000</div>
+                <div className="text-sm text-muted-foreground">Not provided</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -99,11 +115,27 @@ export default function FacultyProfilePage() {
               </div>
               <div>
                 <div className="text-sm font-medium">Office Location</div>
-                <div className="text-sm text-muted-foreground">Staff Room 2, Block A<br/>Kongunadu Arts and Science College</div>
+                <div className="text-sm text-muted-foreground">
+                  Kongunadu Arts and Science College,<br />GN Mills Post, Coimbatore - 641 029
+                </div>
               </div>
             </div>
           </div>
         </Card>
+      </div>
+
+      <div className="pt-4 flex justify-center">
+        <Button
+          variant="destructive"
+          className="w-full sm:w-auto rounded-xl shadow-sm px-8"
+          onClick={async () => {
+            await auth.signOut();
+            router.push("/login");
+          }}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Sign out of KASC Pulse
+        </Button>
       </div>
     </div>
   );

@@ -1,0 +1,4 @@
+name,email,password,department,designation,isTutor
+Prof. Anjali Verma,anjali.verma@kasc.ac.in,Faculty@123,B.Sc. Computer Science,Assistant Professor,false
+Dr. Ramesh Iyer,ramesh.iyer@kasc.ac.in,Faculty@123,BCA,Associate Professor,true
+Prof. S. Nair,s.nair@kasc.ac.in,Faculty@123,B.Sc. BioTechnology,Guest Lecturer,false

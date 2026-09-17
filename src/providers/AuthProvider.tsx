@@ -12,6 +12,13 @@ interface AppUser {
   name?: string;
   isTutor?: boolean;
   classId?: string;
+  // Student fields
+  rollNo?: string;
+  department?: string;
+  semester?: string;
+  stream?: string;
+  // Faculty fields
+  designation?: string;
 }
 
 interface AuthContextType {
