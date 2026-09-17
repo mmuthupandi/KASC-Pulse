@@ -1,13 +1,7 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import { AppShell } from "@/components/app-shell";
-import { LayoutDashboard, User } from "lucide-react";
+import ParentShell from "./parent-shell";
 
 export default function ParentLayout({ children }: { children: React.ReactNode }) {
-  const parentNavigation = [
-    { name: "Dashboard", href: "/parent", icon: LayoutDashboard },
-    { name: "Profile", href: "/parent/profile", icon: User },
-  ];
-
-  return <AppShell role="parent">{children}</AppShell>;
+  return <ParentShell>{children}</ParentShell>;
 }

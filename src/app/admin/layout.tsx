@@ -1,13 +1,7 @@
-"use client";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+export const dynamic = "force-dynamic";
 
-import { AppShell } from "@/components/app-shell";
+import AdminShell from "./admin-shell";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <AppShell role="admin">
-      {children}
-    </AppShell>
-  );
+  return <AdminShell>{children}</AdminShell>;
 }

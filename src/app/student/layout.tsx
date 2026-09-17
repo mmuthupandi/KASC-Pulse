@@ -1,13 +1,7 @@
-"use client";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+export const dynamic = "force-dynamic";
 
-import { AppShell } from "@/components/app-shell";
+import StudentShell from "./student-shell";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <AppShell role="student">
-      {children}
-    </AppShell>
-  );
+  return <StudentShell>{children}</StudentShell>;
 }
