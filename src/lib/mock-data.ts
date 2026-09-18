@@ -35,17 +35,18 @@ export const hodUser = {
 };
 
 export const todayTimetable = [
-  { time: "09:30 AM", subject: "OS", room: "Lab-4", faculty: "Prof. Verma", status: "present" as const },
-  { time: "10:30 AM", subject: "Software Engineering & Testing", room: "A-102", faculty: "Prof. Rao", status: "upcoming" as const },
-  { time: "11:30 AM", subject: "Cloud Computing", room: "A-103", faculty: "Prof. Nair", status: "upcoming" as const },
-  { time: "01:15 PM", subject: "DBMS", room: "A-104", faculty: "Prof. Khan", status: "upcoming" as const },
+  { time: "09:30 AM", subject: "Operating Systems", room: "Class Room", faculty: "Dr. M. Jagadheeswari", status: "present" as const },
+  { time: "10:30 AM", subject: "Software Engineering & Testing", room: "Class Room", faculty: "Dr. Nithya A", status: "upcoming" as const },
+  { time: "11:30 AM", subject: "EDC", room: "Class Room", faculty: "—", status: "upcoming" as const },
+  { time: "01:15 PM", subject: "DBMS Lab", room: "Lab", faculty: "Dr. Saravana Moorthy R", status: "upcoming" as const },
+  { time: "02:15 PM", subject: "Database Management System", room: "Class Room", faculty: "Mrs. Vanjimalar S", status: "upcoming" as const },
 ];
 
 export const subjectAttendance = [
-  { subject: "OS", percentage: 92 },
+  { subject: "Operating Systems", percentage: 92 },
   { subject: "Software Engineering & Testing", percentage: 85 },
   { subject: "Cloud Computing", percentage: 88 },
-  { subject: "DBMS", percentage: 90 },
+  { subject: "Database Management System", percentage: 90 },
   { subject: "DBMS Lab", percentage: 80 },
   { subject: "EDC", percentage: 87 },
 ];
@@ -158,28 +159,96 @@ export const students = rawStudents.map((s, i) => ({
   status: ["present", "present", "present", "absent", "late"][i % 5] as "present" | "absent" | "late",
 }));
 
+// ─── Subject & Staff definitions ─────────────────────────────────────────────
+
+const SUBJECTS = {
+  OS:       { name: "Operating Systems",                     code: "24USC506", staff: "Dr. M. Jagadheeswari" },
+  SE:       { name: "Software Engineering & Testing",        code: "24USC505", staff: "Dr. Nithya A" },
+  SE_add:   { name: "Software Engineering & Testing",        code: "24USC505", staff: "Mrs. Sumitha Pandit Shanmugaraja S" },
+  CC:       { name: "Cloud Computing (Major Elective)",      code: "24USC5E1", staff: "Dr. Saravana Moorthy R" },
+  CC_add:   { name: "Cloud Computing (Major Elective)",      code: "24USC5E1", staff: "Mrs. Juliet Monolisa Esther M" },
+  DBMS:     { name: "Database Management System",            code: "24USC507", staff: "Mrs. Vanjimalar S" },
+  DBMS_lab: { name: "DBMS Lab",                              code: "24USC5CP", staff: "Mrs. Vanjimalar S" },
+  DBMS_lab_add1: { name: "DBMS Lab",                        code: "24USC5CP", staff: "Dr. Saravana Moorthy R" },
+  DBMS_lab_add2: { name: "DBMS Lab",                        code: "24USC5CP", staff: "Dr. M. Jagadheeswari" },
+  DBMS_lab_add3: { name: "DBMS Lab",                        code: "24USC5CP", staff: "Dr. Nithya A" },
+  EDC:      { name: "Extra Departmental Course (EDC)",       code: "",         staff: "—" },
+};
+
+const TIMES = [
+  "09:30 - 10:30",
+  "10:30 - 11:30",
+  "11:45 - 12:45",
+  "01:15 - 02:15",
+  "02:15 - 03:15",
+];
+
+function slot(period: number, key: keyof typeof SUBJECTS) {
+  const s = SUBJECTS[key];
+  return { time: TIMES[period - 1], subject: s.name, code: s.code, faculty: s.staff };
+}
+
 export const weeklyTimetable = [
-  { day: "Monday", slots: [
-    { time: "09:30 - 10:30", subject: "OS", faculty: "Prof. Verma", room: "Lab-4" },
-    { time: "10:30 - 11:30", subject: "Software Engineering & Testing", faculty: "Prof. Rao", room: "A-102" },
-    { time: "11:45 - 12:45", subject: "Cloud Computing", faculty: "Prof. Nair", room: "A-103" },
-  ]},
-  { day: "Tuesday", slots: [
-    { time: "09:30 - 10:30", subject: "DBMS", faculty: "Prof. Khan", room: "A-104" },
-    { time: "10:30 - 11:30", subject: "DBMS Lab", faculty: "Prof. Iyer", room: "Lab-2" },
-  ]},
-  { day: "Wednesday", slots: [
-    { time: "09:30 - 10:30", subject: "EDC", faculty: "Prof. Bose", room: "A-201" },
-    { time: "10:30 - 11:30", subject: "OS", faculty: "Prof. Verma", room: "Lab-4" },
-  ]},
-  { day: "Thursday", slots: [
-    { time: "09:30 - 10:30", subject: "Software Engineering & Testing", faculty: "Prof. Rao", room: "A-102" },
-    { time: "11:45 - 12:45", subject: "Cloud Computing", faculty: "Prof. Nair", room: "A-103" },
-  ]},
-  { day: "Friday", slots: [
-    { time: "09:30 - 10:30", subject: "DBMS Lab", faculty: "Prof. Iyer", room: "Lab-2" },
-    { time: "01:15 - 02:15", subject: "DBMS", faculty: "Prof. Khan", room: "A-104" },
-  ]},
+  {
+    day: "Day 1 (Mon)",
+    slots: [
+      slot(1, "OS"),
+      slot(2, "SE"),
+      slot(3, "EDC"),
+      slot(4, "DBMS_lab_add1"),
+      slot(5, "DBMS"),
+    ],
+  },
+  {
+    day: "Day 2 (Tue)",
+    slots: [
+      slot(1, "CC_add"),
+      slot(2, "CC"),
+      slot(3, "EDC"),
+      slot(4, "OS"),
+      slot(5, "DBMS_lab_add3"),
+    ],
+  },
+  {
+    day: "Day 3 (Wed)",
+    slots: [
+      slot(1, "OS"),
+      slot(2, "CC"),
+      slot(3, "DBMS"),
+      slot(4, "SE_add"),
+      slot(5, "DBMS_lab_add1"),
+    ],
+  },
+  {
+    day: "Day 4 (Thu)",
+    slots: [
+      slot(1, "CC_add"),
+      slot(2, "DBMS"),
+      slot(3, "OS"),
+      slot(4, "DBMS_lab_add3"),
+      slot(5, "SE_add"),
+    ],
+  },
+  {
+    day: "Day 5 (Fri)",
+    slots: [
+      slot(1, "OS"),
+      slot(2, "SE"),
+      slot(3, "DBMS_lab_add2"),
+      slot(4, "DBMS"),
+      slot(5, "SE"),
+    ],
+  },
+  {
+    day: "Day 6 (Sat)",
+    slots: [
+      slot(1, "SE"),
+      slot(2, "CC"),
+      slot(3, "OS"),
+      slot(4, "DBMS"),
+      slot(5, "DBMS_lab_add2"),
+    ],
+  },
 ];
 
 export const leaveHistory = [
