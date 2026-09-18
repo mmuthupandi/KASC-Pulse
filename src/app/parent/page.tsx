@@ -39,11 +39,11 @@ export default function ParentDashboard() {
 
   // The 5 fixed periods timetable
   const periods = [
-    { period: 1, time: "09:00 AM - 10:00 AM", subject: "OS" },
-    { period: 2, time: "10:00 AM - 11:00 AM", subject: "Software Engineering & Testing" },
-    { period: 3, time: "11:00 AM - 12:00 PM", subject: "Cloud Computing" },
-    { period: 4, time: "01:00 PM - 02:00 PM", subject: "DBMS" },
-    { period: 5, time: "02:00 PM - 03:00 PM", subject: "EDC" },
+    { period: 1, time: "10:00 AM - 11:00 AM", subject: "Operating Systems" },
+    { period: 2, time: "11:00 AM - 12:00 PM", subject: "Software Engineering & Testing" },
+    { period: 3, time: "12:00 PM - 01:00 PM", subject: "EDC" },
+    { period: 4, time: "02:00 PM - 03:00 PM", subject: "Database Management System" },
+    { period: 5, time: "03:00 PM - 04:00 PM", subject: "DBMS Lab" },
   ];
 
   useEffect(() => {

@@ -22,13 +22,12 @@ function StudentDashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
   
-  // Day 1 timetable — matches the real 5th sem B.Sc CS schedule
   const [timetable, setTimetable] = useState([
-    { period: 1, time: "09:30 AM - 10:30 AM", subject: "Operating Systems",             room: "Class Room", faculty: "Dr. M. Jagadheeswari",              status: "upcoming" },
-    { period: 2, time: "10:30 AM - 11:30 AM", subject: "Software Engineering & Testing", room: "Class Room", faculty: "Dr. Nithya A",                      status: "upcoming" },
-    { period: 3, time: "11:45 AM - 12:45 PM", subject: "EDC",                            room: "Class Room", faculty: "—",                                  status: "upcoming" },
-    { period: 4, time: "01:15 PM - 02:15 PM", subject: "DBMS Lab",                       room: "Lab",        faculty: "Dr. Saravana Moorthy R",             status: "upcoming" },
-    { period: 5, time: "02:15 PM - 03:15 PM", subject: "Database Management System",     room: "Class Room", faculty: "Mrs. Vanjimalar S",                  status: "upcoming" },
+    { period: 1, time: "10:00 AM - 11:00 AM", subject: "Operating Systems",              room: "Class Room", faculty: "Dr. M. Jagadheeswari",    status: "upcoming" },
+    { period: 2, time: "11:00 AM - 12:00 PM", subject: "Software Engineering & Testing", room: "Class Room", faculty: "Dr. Nithya A",            status: "upcoming" },
+    { period: 3, time: "12:00 PM - 01:00 PM", subject: "EDC",                            room: "Class Room", faculty: "—",                       status: "upcoming" },
+    { period: 4, time: "02:00 PM - 03:00 PM", subject: "DBMS Lab",                       room: "Lab",        faculty: "Dr. Saravana Moorthy R",  status: "upcoming" },
+    { period: 5, time: "03:00 PM - 04:00 PM", subject: "Database Management System",     room: "Class Room", faculty: "Mrs. Vanjimalar S",       status: "upcoming" },
   ]);
   const [overallPercentage, setOverallPercentage] = useState(100);
   const [dynamicSubjectAttendance, setDynamicSubjectAttendance] = useState([

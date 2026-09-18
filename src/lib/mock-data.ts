@@ -35,11 +35,11 @@ export const hodUser = {
 };
 
 export const todayTimetable = [
-  { time: "09:30 AM", subject: "Operating Systems", room: "Class Room", faculty: "Dr. M. Jagadheeswari", status: "present" as const },
-  { time: "10:30 AM", subject: "Software Engineering & Testing", room: "Class Room", faculty: "Dr. Nithya A", status: "upcoming" as const },
-  { time: "11:30 AM", subject: "EDC", room: "Class Room", faculty: "—", status: "upcoming" as const },
-  { time: "01:15 PM", subject: "DBMS Lab", room: "Lab", faculty: "Dr. Saravana Moorthy R", status: "upcoming" as const },
-  { time: "02:15 PM", subject: "Database Management System", room: "Class Room", faculty: "Mrs. Vanjimalar S", status: "upcoming" as const },
+  { time: "10:00 AM", subject: "Operating Systems",             room: "Class Room", faculty: "Dr. M. Jagadheeswari",  status: "present" as const },
+  { time: "11:00 AM", subject: "Software Engineering & Testing", room: "Class Room", faculty: "Dr. Nithya A",         status: "upcoming" as const },
+  { time: "12:00 PM", subject: "EDC",                            room: "Class Room", faculty: "—",                    status: "upcoming" as const },
+  { time: "02:00 PM", subject: "DBMS Lab",                       room: "Lab",        faculty: "Dr. Saravana Moorthy R", status: "upcoming" as const },
+  { time: "03:00 PM", subject: "Database Management System",     room: "Class Room", faculty: "Mrs. Vanjimalar S",    status: "upcoming" as const },
 ];
 
 export const subjectAttendance = [
@@ -176,11 +176,11 @@ const SUBJECTS = {
 };
 
 const TIMES = [
-  "09:30 - 10:30",
-  "10:30 - 11:30",
-  "11:45 - 12:45",
-  "01:15 - 02:15",
-  "02:15 - 03:15",
+  "10:00 - 11:00",
+  "11:00 - 12:00",
+  "12:00 - 01:00",
+  "02:00 - 03:00",
+  "03:00 - 04:00",
 ];
 
 function slot(period: number, key: keyof typeof SUBJECTS) {

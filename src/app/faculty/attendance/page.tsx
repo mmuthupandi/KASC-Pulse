@@ -193,11 +193,11 @@ function TakeAttendance() {
             <Select value={period} onValueChange={setPeriod}>
               <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">Period 1 (09:00 AM)</SelectItem>
-                <SelectItem value="2">Period 2 (10:00 AM)</SelectItem>
-                <SelectItem value="3">Period 3 (11:00 AM)</SelectItem>
-                <SelectItem value="4">Period 4 (01:00 PM)</SelectItem>
-                <SelectItem value="5">Period 5 (02:00 PM)</SelectItem>
+                <SelectItem value="1">Period 1 (10:00 AM)</SelectItem>
+                <SelectItem value="2">Period 2 (11:00 AM)</SelectItem>
+                <SelectItem value="3">Period 3 (12:00 PM)</SelectItem>
+                <SelectItem value="4">Period 4 (02:00 PM)</SelectItem>
+                <SelectItem value="5">Period 5 (03:00 PM)</SelectItem>
               </SelectContent>
             </Select>
           </div>
