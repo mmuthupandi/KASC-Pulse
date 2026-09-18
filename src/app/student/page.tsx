@@ -22,21 +22,22 @@ function StudentDashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
   
-  // 5 periods timetable template
+  // Day 1 timetable — matches the real 5th sem B.Sc CS schedule
   const [timetable, setTimetable] = useState([
-    { period: 1, time: "09:00 AM - 10:00 AM", subject: "OS", room: "L-301", faculty: "Prof. Verma", status: "upcoming" },
-    { period: 2, time: "10:00 AM - 11:00 AM", subject: "Software Engineering & Testing", room: "L-302", faculty: "Dr. Sharma", status: "upcoming" },
-    { period: 3, time: "11:00 AM - 12:00 PM", subject: "Cloud Computing", room: "L-303", faculty: "Prof. Singh", status: "upcoming" },
-    { period: 4, time: "01:00 PM - 02:00 PM", subject: "DBMS", room: "L-304", faculty: "Dr. Gupta", status: "upcoming" },
-    { period: 5, time: "02:00 PM - 03:00 PM", subject: "EDC", room: "L-305", faculty: "Prof. Kumar", status: "upcoming" },
+    { period: 1, time: "09:30 AM - 10:30 AM", subject: "Operating Systems",             room: "Class Room", faculty: "Dr. M. Jagadheeswari",              status: "upcoming" },
+    { period: 2, time: "10:30 AM - 11:30 AM", subject: "Software Engineering & Testing", room: "Class Room", faculty: "Dr. Nithya A",                      status: "upcoming" },
+    { period: 3, time: "11:45 AM - 12:45 PM", subject: "EDC",                            room: "Class Room", faculty: "—",                                  status: "upcoming" },
+    { period: 4, time: "01:15 PM - 02:15 PM", subject: "DBMS Lab",                       room: "Lab",        faculty: "Dr. Saravana Moorthy R",             status: "upcoming" },
+    { period: 5, time: "02:15 PM - 03:15 PM", subject: "Database Management System",     room: "Class Room", faculty: "Mrs. Vanjimalar S",                  status: "upcoming" },
   ]);
   const [overallPercentage, setOverallPercentage] = useState(100);
   const [dynamicSubjectAttendance, setDynamicSubjectAttendance] = useState([
-    { subject: "OS", percentage: 100 },
+    { subject: "Operating Systems",             percentage: 100 },
     { subject: "Software Engineering & Testing", percentage: 100 },
-    { subject: "Cloud Computing", percentage: 100 },
-    { subject: "DBMS", percentage: 100 },
-    { subject: "EDC", percentage: 100 }
+    { subject: "Cloud Computing",               percentage: 100 },
+    { subject: "Database Management System",    percentage: 100 },
+    { subject: "DBMS Lab",                      percentage: 100 },
+    { subject: "EDC",                           percentage: 100 },
   ]);
 
   useEffect(() => {
@@ -65,11 +66,11 @@ function StudentDashboard() {
 
         // Calculate subject-wise attendance based on fixed periods
         const subjectStats: Record<number, { present: number, total: number, subject: string }> = {
-          1: { present: 0, total: 0, subject: "OS" },
+          1: { present: 0, total: 0, subject: "Operating Systems" },
           2: { present: 0, total: 0, subject: "Software Engineering & Testing" },
           3: { present: 0, total: 0, subject: "Cloud Computing" },
-          4: { present: 0, total: 0, subject: "DBMS" },
-          5: { present: 0, total: 0, subject: "EDC" },
+          4: { present: 0, total: 0, subject: "Database Management System" },
+          5: { present: 0, total: 0, subject: "DBMS Lab" },
         };
 
         allRecords.forEach(r => {
