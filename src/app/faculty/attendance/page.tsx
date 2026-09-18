@@ -1,7 +1,6 @@
 "use client";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,246 +9,358 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/stat-card";
-import { CheckCircle2, XCircle, Save, Search, Loader2 } from "lucide-react";
-import { students } from "@/lib/mock-data";
+import { CheckCircle2, XCircle, Save, Search, Loader2, Lock } from "lucide-react";
+import { students as mockStudents } from "@/lib/mock-data";
 import { db } from "@/lib/firebase";
 import { writeBatch, doc, collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/providers/AuthProvider";
+import { weeklyTimetable } from "@/lib/mock-data";
+
+// ─── Subject catalogue (single source of truth) ───────────────────────────────
+const ALL_SUBJECTS = [
+  { code: "24USC506", name: "Operating Systems",                short: "OS" },
+  { code: "24USC505", name: "Software Engineering & Testing",   short: "SE" },
+  { code: "24USC5E1", name: "Cloud Computing (Major Elective)", short: "CC" },
+  { code: "24USC507", name: "Database Management System",       short: "DBMS" },
+  { code: "24USC5CP", name: "DBMS Lab",                        short: "Lab" },
+  { code: "EDC",      name: "Extra Departmental Course (EDC)",  short: "EDC" },
+];
+
+// Period timing labels
+const PERIOD_TIMES: Record<number, string> = {
+  1: "10:00 AM – 11:00 AM",
+  2: "11:00 AM – 12:00 PM",
+  3: "12:00 PM – 01:00 PM",
+  4: "02:00 PM – 03:00 PM",
+  5: "03:00 PM – 04:00 PM",
+};
 
 type Status = "present" | "absent";
+
+interface StudentRow {
+  id: string;
+  name: string;
+  rollNo: string;
+  department: string;
+  marked: Status;
+}
 
 export default function Page() { return <TakeAttendance />; }
 
 function TakeAttendance() {
   const { user } = useAuth();
-  const [dbStudents, setDbStudents] = useState<any[]>(students);
-  const [rows, setRows] = useState<any[]>([]);
-  const [q, setQ] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // ─── Derive allowed subjects from user.subjects ──────────────────────────
+  const allowedSubjects = useMemo(() => {
+    if (!user) return [];
+    // Tutors and admins can access all subjects
+    if (user.isTutor || user.role === "admin") return ALL_SUBJECTS;
+    if (!user.subjects?.length) return [];
+    return ALL_SUBJECTS.filter((s) => user.subjects!.includes(s.code));
+  }, [user]);
+
+  // ─── Derive allowed periods for a given subject from the timetable ───────
+  function allowedPeriodsForSubject(subjectCode: string): number[] {
+    if (!user) return [];
+    if (user.isTutor || user.role === "admin") return [1, 2, 3, 4, 5];
+    const periods = new Set<number>();
+    weeklyTimetable.forEach((day) => {
+      day.slots.forEach((slot, idx) => {
+        if (slot.code === subjectCode) {
+          // idx is 0-based, period is 1-based
+          periods.add(idx + 1);
+        }
+      });
+    });
+    return Array.from(periods).sort();
+  }
+
+  // ─── Form state ───────────────────────────────────────────────────────────
+  const defaultSubject = allowedSubjects[0]?.code ?? "";
+  const [subjectCode, setSubjectCode] = useState(defaultSubject);
   const [period, setPeriod] = useState("1");
-  const [classId, setClassId] = useState("a");
-  const [saving, setSaving] = useState(false);
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [classId] = useState("b"); // III B.Sc. CS Un-Aided
+
+  // Keep subject in sync when allowedSubjects loads
+  useEffect(() => {
+    if (!subjectCode && allowedSubjects.length > 0) {
+      setSubjectCode(allowedSubjects[0].code);
+    }
+  }, [allowedSubjects, subjectCode]);
+
+  // Keep period in sync when subject changes
+  const allowedPeriods = useMemo(
+    () => allowedPeriodsForSubject(subjectCode),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [subjectCode, user]
+  );
+  useEffect(() => {
+    if (allowedPeriods.length > 0 && !allowedPeriods.includes(Number(period))) {
+      setPeriod(String(allowedPeriods[0]));
+    }
+  }, [allowedPeriods, period]);
+
+  // ─── Students + attendance ────────────────────────────────────────────────
+  const [rows, setRows] = useState<StudentRow[]>([]);
   const [fetching, setFetching] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "present" | "absent">("all");
 
   useEffect(() => {
-    async function initData() {
-      if (!date || !period || !classId) return;
-      setFetching(true);
+    if (!subjectCode || !period || !date) return;
+    let cancelled = false;
 
-      let currentStudents: any[] = students;
+    async function load() {
+      setFetching(true);
       try {
-        // Fetch real students from Firebase
-        const qStudents = query(collection(db, "users"), where("role", "==", "student"));
-        const snapStudents = await getDocs(qStudents);
-        if (!snapStudents.empty) {
-          const realStudents = snapStudents.docs.map(doc => {
-            const data = doc.data();
+        // 1. Fetch real students
+        let studentList: StudentRow[] = [];
+        const snap = await getDocs(
+          query(collection(db, "users"), where("role", "==", "student"))
+        );
+        if (!snap.empty) {
+          const real = snap.docs.map((d) => {
+            const data = d.data();
             return {
-              id: doc.id,
-              name: data.name || "Unknown Student",
-              rollNo: data.email ? data.email.split('@')[0].toUpperCase() : "NEW-STUDENT",
+              id: d.id,
+              name: data.name || "Unknown",
+              rollNo: data.rollNo || data.email?.split("@")[0].toUpperCase() || "—",
               department: data.department || "B.Sc CS",
-              avatar: ""
+              marked: "present" as Status,
             };
           });
-          // Filter out mock students that have the same Reg No as a real student
-          const filteredMockStudents = students.filter(
-            mock => !realStudents.some(real => real.rollNo.toUpperCase() === mock.rollNo.toUpperCase())
-          );
-
-          // Put real students into the list and sort by Reg No
-          currentStudents = [...realStudents, ...filteredMockStudents].sort((a, b) => 
-            a.rollNo.localeCompare(b.rollNo)
-          );
-        }
-      } catch (err) {
-        console.error("Error fetching real students:", err);
-      }
-      
-      setDbStudents(currentStudents);
-
-      try {
-        // Fetch attendance for the selected date
-        const qAtt = query(
-          collection(db, "attendance"),
-          where("date", "==", date),
-          where("period", "==", parseInt(period)),
-          where("classId", "==", classId)
-        );
-        const snapshot = await getDocs(qAtt);
-        
-        if (!snapshot.empty) {
-          const records = snapshot.docs.map(doc => doc.data());
-          setRows(currentStudents.map(s => {
-            const record = records.find(r => r.studentId === String(s.id));
-            return { ...s, marked: (record?.status as Status) || "present" };
-          }));
+          const realRolls = new Set(real.map((r) => r.rollNo.toUpperCase()));
+          const mockFiltered = mockStudents
+            .filter((m) => !realRolls.has(m.rollNo.toUpperCase()))
+            .map((m) => ({ id: String(m.id), name: m.name, rollNo: m.rollNo, department: m.department, marked: "present" as Status }));
+          studentList = [...real, ...mockFiltered].sort((a, b) => a.rollNo.localeCompare(b.rollNo));
         } else {
-          setRows(currentStudents.map(s => ({ ...s, marked: "present" })));
+          studentList = mockStudents.map((m) => ({
+            id: String(m.id), name: m.name, rollNo: m.rollNo,
+            department: m.department, marked: "present" as Status,
+          }));
         }
-      } catch (error) {
-        console.error("Error fetching existing attendance", error);
+
+        // 2. Load existing attendance for this slot
+        const attSnap = await getDocs(
+          query(
+            collection(db, "attendance"),
+            where("date", "==", date),
+            where("period", "==", parseInt(period)),
+            where("classId", "==", classId),
+            where("subjectCode", "==", subjectCode)
+          )
+        );
+        const records = attSnap.docs.map((d) => d.data());
+        studentList = studentList.map((s) => {
+          const rec = records.find((r) => r.studentId === s.id);
+          return rec ? { ...s, marked: rec.status as Status } : s;
+        });
+
+        if (!cancelled) setRows(studentList);
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) toast.error("Failed to load students");
       } finally {
-        setFetching(false);
+        if (!cancelled) setFetching(false);
       }
     }
 
-    initData();
-  }, [date, period, classId]);
+    load();
+    return () => { cancelled = true; };
+  }, [date, period, classId, subjectCode]);
 
-  const setStatus = (id: string | number, status: Status) =>
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+  const setStatus = (id: string, status: Status) =>
     setRows((r) => r.map((row) => (row.id === id ? { ...row, marked: status } : row)));
   const markAllPresent = () => setRows((r) => r.map((row) => ({ ...row, marked: "present" })));
 
   const filtered = rows.filter((r) => {
-    const matchesSearch = r.name.toLowerCase().includes(q.toLowerCase()) || r.rollNo.toLowerCase().includes(q.toLowerCase());
-    const matchesFilter = filter === "all" ? true : r.marked === filter;
-    return matchesSearch && matchesFilter;
+    const matchQ = r.name.toLowerCase().includes(q.toLowerCase()) || r.rollNo.toLowerCase().includes(q.toLowerCase());
+    const matchF = filter === "all" || r.marked === filter;
+    return matchQ && matchF;
   });
-  
-  const present = rows.filter((r) => r.marked === "present").length;
-  const absent = rows.filter((r) => r.marked === "absent").length;
-  const pct = Math.round((present / rows.length) * 100);
 
-  const handleSaveAttendance = async () => {
-    if (!user) {
-      toast.error("You must be logged in to save attendance.");
-      return;
-    }
+  const present = rows.filter((r) => r.marked === "present").length;
+  const absent  = rows.filter((r) => r.marked === "absent").length;
+  const pct = rows.length > 0 ? Math.round((present / rows.length) * 100) : 0;
+
+  const selectedSubject = ALL_SUBJECTS.find((s) => s.code === subjectCode);
+
+  // ─── Save ─────────────────────────────────────────────────────────────────
+  async function handleSave() {
+    if (!user) { toast.error("Not logged in"); return; }
+    if (!subjectCode) { toast.error("No subject selected"); return; }
     setSaving(true);
     try {
       const batch = writeBatch(db);
-      rows.forEach(row => {
-        const docId = `${date}_${period}_${classId}_${row.id}`;
-        const docRef = doc(db, "attendance", docId);
-        batch.set(docRef, {
+      rows.forEach((row) => {
+        const docId = `${date}_${period}_${classId}_${subjectCode}_${row.id}`;
+        batch.set(doc(db, "attendance", docId), {
           date,
           period: parseInt(period),
           classId,
-          studentId: String(row.id),
+          subjectCode,
+          subjectName: selectedSubject?.name ?? subjectCode,
+          studentId: row.id,
           studentName: row.name,
           status: row.marked,
           facultyId: user.uid,
-          timestamp: new Date().toISOString()
+          facultyName: user.name ?? "",
+          timestamp: new Date().toISOString(),
         });
       });
       await batch.commit();
-      toast.success("Attendance saved successfully", { description: `${present} present · ${absent} absent` });
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to save attendance.");
+      toast.success("Attendance saved", { description: `${present} present · ${absent} absent` });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save attendance");
     } finally {
       setSaving(false);
     }
-  };
+  }
+
+  // ─── No subjects assigned guard ───────────────────────────────────────────
+  if (user && !user.isTutor && user.role !== "admin" && allowedSubjects.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+        <div className="rounded-full bg-muted p-4">
+          <Lock className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold">No subjects assigned</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Ask your administrator to assign subjects to your account from the<br />
+            Admin → Assign Subjects page.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Take / Edit Attendance</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Mark or modify attendance for any past date.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {user?.isTutor
+            ? "Class Tutor — full access to all subjects and periods."
+            : `Showing only your assigned subject${allowedSubjects.length !== 1 ? "s" : ""}.`}
+        </p>
       </div>
 
+      {/* Controls */}
       <Card className="p-5 relative overflow-hidden">
         {fetching && (
-          <div className="absolute inset-0 z-10 bg-background/50 flex items-center justify-center backdrop-blur-[1px]">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         )}
         <div className="grid gap-4 md:grid-cols-4">
+          {/* Subject */}
           <div className="space-y-2">
             <Label>Subject</Label>
-            <Select defaultValue="os">
-              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+            <Select value={subjectCode} onValueChange={setSubjectCode} disabled={fetching}>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="os">OS</SelectItem>
-                <SelectItem value="set">Software Engineering and Testing</SelectItem>
-                <SelectItem value="cc">Cloud Computing</SelectItem>
-                <SelectItem value="dbms">DBMS</SelectItem>
-                <SelectItem value="dbms_lab">DBMS Lab</SelectItem>
-                <SelectItem value="edc">EDC (Extra Departmental Course)</SelectItem>
+                {allowedSubjects.map((s) => (
+                  <SelectItem key={s.code} value={s.code}>
+                    <span className="font-medium">{s.short}</span>
+                    <span className="text-muted-foreground text-xs ml-2 hidden sm:inline">{s.name}</span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
+
+          {/* Period — only allowed periods shown */}
           <div className="space-y-2">
-            <Label>Class</Label>
-            <Select value={classId} onValueChange={setClassId}>
+            <Label>Period</Label>
+            <Select value={period} onValueChange={setPeriod} disabled={fetching}>
               <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="a">B.Tech CS · 3rd Sem A</SelectItem>
-                <SelectItem value="b">B.Tech CS · 3rd Sem B</SelectItem>
+                {(user?.isTutor || user?.role === "admin" ? [1,2,3,4,5] : allowedPeriods).map((p) => (
+                  <SelectItem key={p} value={String(p)}>
+                    Period {p} — {PERIOD_TIMES[p]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
+
+          {/* Date */}
           <div className="space-y-2">
             <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl" />
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl" disabled={fetching} />
           </div>
+
+          {/* Class info (read-only for now) */}
           <div className="space-y-2">
-            <Label>Period (1-5)</Label>
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Period 1 (10:00 AM)</SelectItem>
-                <SelectItem value="2">Period 2 (11:00 AM)</SelectItem>
-                <SelectItem value="3">Period 3 (12:00 PM)</SelectItem>
-                <SelectItem value="4">Period 4 (02:00 PM)</SelectItem>
-                <SelectItem value="5">Period 5 (03:00 PM)</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>Class</Label>
+            <div className="flex h-10 items-center rounded-xl border bg-muted/40 px-3 text-sm text-muted-foreground">
+              III B.Sc. CS (Un-Aided)
+            </div>
           </div>
         </div>
+
+        {/* Subject badge */}
+        {selectedSubject && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="secondary" className="font-mono">{selectedSubject.code}</Badge>
+            <span>{selectedSubject.name}</span>
+            {user?.isTutor && <Badge className="bg-primary/10 text-primary border-primary/20">Class Tutor</Badge>}
+          </div>
+        )}
       </Card>
 
+      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard title="Present" value={present} icon={<CheckCircle2 className="h-5 w-5" />} accent="green" />
-        <StatCard title="Absent" value={absent} icon={<XCircle className="h-5 w-5" />} accent="red" />
-        <StatCard title="Attendance %" value={`${pct}%`} hint={`of ${rows.length} students`} accent="primary" />
+        <StatCard title="Absent"  value={absent}  icon={<XCircle className="h-5 w-5" />}      accent="red" />
+        <StatCard title="Attendance %" value={`${pct}%`} hint={`of ${rows.length} students`}  accent="primary" />
       </div>
 
+      {/* Table */}
       <Card className="p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search students..." className="h-10 w-64 rounded-xl pl-9" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search students…" className="h-10 w-64 rounded-xl pl-9" />
             </div>
-            <div className="flex bg-muted/50 p-1 rounded-xl">
-              <Button
-                variant={filter === "all" ? "default" : "ghost"}
-                size="sm"
-                className={`rounded-lg h-8 px-4 ${filter === "all" ? "bg-primary text-primary-foreground shadow-sm" : ""}`}
-                onClick={() => setFilter("all")}
-              >All</Button>
-              <Button
-                variant={filter === "present" ? "default" : "ghost"}
-                size="sm"
-                className={`rounded-lg h-8 px-4 ${filter === "present" ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm" : ""}`}
-                onClick={() => setFilter("present")}
-              >P</Button>
-              <Button
-                variant={filter === "absent" ? "default" : "ghost"}
-                size="sm"
-                className={`rounded-lg h-8 px-4 ${filter === "absent" ? "bg-rose-600 hover:bg-rose-700 text-white shadow-sm" : ""}`}
-                onClick={() => setFilter("absent")}
-              >A</Button>
+            <div className="flex bg-muted/50 p-1 rounded-xl gap-1">
+              {(["all", "present", "absent"] as const).map((f) => (
+                <Button
+                  key={f}
+                  variant={filter === f ? "default" : "ghost"}
+                  size="sm"
+                  className={`rounded-lg h-8 px-4 capitalize ${
+                    filter === f && f === "present" ? "bg-emerald-600 hover:bg-emerald-700 text-white" :
+                    filter === f && f === "absent"  ? "bg-rose-600 hover:bg-rose-700 text-white" : ""
+                  }`}
+                  onClick={() => setFilter(f)}
+                >
+                  {f === "all" ? "All" : f === "present" ? "P" : "A"}
+                </Button>
+              ))}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="rounded-xl" onClick={markAllPresent} disabled={fetching}>Mark All Present</Button>
-            <Button
-              className="rounded-xl"
-              onClick={handleSaveAttendance}
-              disabled={saving || fetching}
-            >
+          <div className="flex gap-2">
+            <Button variant="outline" className="rounded-xl" onClick={markAllPresent} disabled={fetching}>
+              Mark All Present
+            </Button>
+            <Button className="rounded-xl" onClick={handleSave} disabled={saving || fetching}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Save Attendance
             </Button>
           </div>
         </div>
+
         <Table>
           <TableHeader>
             <TableRow>
@@ -260,31 +371,38 @@ function TakeAttendance() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                  {fetching ? "Loading…" : "No students found."}
+                </TableCell>
+              </TableRow>
+            )}
             {filtered.map((s) => (
               <TableRow key={s.id}>
                 <TableCell className="hidden sm:table-cell"><Checkbox /></TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-muted text-muted-foreground">{s.name.slice(0,2).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                        {s.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium truncate max-w-[120px] sm:max-w-none">{s.name}</span>
+                    <span className="font-medium truncate max-w-[140px] sm:max-w-none">{s.name}</span>
                   </div>
                 </TableCell>
                 <TableCell className="font-mono text-sm">{s.rollNo}</TableCell>
                 <TableCell className="text-right">
                   <div className="inline-flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className={`h-8 w-10 rounded-lg transition-colors ${s.marked === "present" ? "bg-emerald-600 hover:bg-emerald-700 text-white border-transparent" : ""}`} 
+                    <Button
+                      size="sm" variant="outline"
+                      className={`h-8 w-10 rounded-lg ${s.marked === "present" ? "bg-emerald-600 hover:bg-emerald-700 text-white border-transparent" : ""}`}
                       onClick={() => setStatus(s.id, "present")}
                       disabled={fetching}
                     >P</Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className={`h-8 w-10 rounded-lg transition-colors ${s.marked === "absent" ? "bg-rose-600 hover:bg-rose-700 text-white border-transparent" : ""}`} 
+                    <Button
+                      size="sm" variant="outline"
+                      className={`h-8 w-10 rounded-lg ${s.marked === "absent" ? "bg-rose-600 hover:bg-rose-700 text-white border-transparent" : ""}`}
                       onClick={() => setStatus(s.id, "absent")}
                       disabled={fetching}
                     >A</Button>

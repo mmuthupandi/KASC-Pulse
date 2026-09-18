@@ -19,6 +19,7 @@ interface AppUser {
   stream?: string;
   // Faculty fields
   designation?: string;
+  subjects?: string[]; // subject codes e.g. ["24USC506", "24USC505"]
 }
 
 interface AuthContextType {

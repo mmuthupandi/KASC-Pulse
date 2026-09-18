@@ -16,6 +16,7 @@ import {
   Building2,
   QrCode,
   UserPlus,
+  BookMarked,
 } from "lucide-react";
 import {
   Sidebar,
@@ -52,6 +53,7 @@ const adminNav = [
   { title: "Students", url: "/admin/students", icon: GraduationCap },
   { title: "Faculty", url: "/admin/faculty", icon: Users },
   { title: "Bulk Create", url: "/admin/bulk-create", icon: UserPlus },
+  { title: "Assign Subjects", url: "/admin/assign-subjects", icon: BookMarked },
   { title: "Departments", url: "/admin/departments", icon: Building2 },
   { title: "Subjects", url: "/admin/subjects", icon: BookOpen },
   { title: "Reports", url: "/admin/reports", icon: FileBarChart },
