@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
+import { useEffect } from "react";
+import { useAuth } from "@/providers/AuthProvider";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/stat-card";
@@ -23,6 +24,19 @@ const COLORS = [
 export default function Page() { return <AdminDashboard />; }
 
 function AdminDashboard() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && (!user || user.role !== "admin")) {
+      router.replace("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return <div className="flex h-[50vh] items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div>

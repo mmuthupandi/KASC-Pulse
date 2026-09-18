@@ -8,7 +8,7 @@ import { Users, ClipboardCheck, Percent, BookOpen, QrCode, Download, Loader2 } f
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { attendanceTrend } from "@/lib/mock-data";
 import { useAuth } from "@/providers/AuthProvider";
-import { collection, query, getDocs } from "firebase/firestore";
+import { collection, query, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -20,12 +20,40 @@ function FacultyDashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
+  const [stats, setStats] = useState({ totalStudents: 0, avgAttendance: 0 });
+  const [fetchingStats, setFetchingStats] = useState(true);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "faculty")) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    async function loadStats() {
+      try {
+        const studentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student")));
+        const totalStudents = studentsSnap.size;
+
+        const attendanceSnap = await getDocs(query(collection(db, "attendance")));
+        const records = attendanceSnap.docs.map(d => d.data());
+        
+        let present = 0;
+        records.forEach(r => {
+          if (r.status === "present") present++;
+        });
+        
+        const avgAttendance = records.length > 0 ? Math.round((present / records.length) * 100) : 0;
+        setStats({ totalStudents, avgAttendance });
+      } catch (err) {
+        console.error("Failed to load stats", err);
+      } finally {
+        setFetchingStats(false);
+      }
+    }
+    loadStats();
+  }, [user]);
 
   if (loading || !user) {
     return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -74,9 +102,9 @@ function FacultyDashboard() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard title="My Classes Today" value="5" hint="Periods 1 to 5" icon={<BookOpen className="h-5 w-5" />} accent="teal" />
-        <StatCard title="Total Students" value="180" hint="Across 3 sections" icon={<Users className="h-5 w-5" />} accent="magenta" />
-        <StatCard title="Avg. Attendance" value="87%" hint="This month" icon={<Percent className="h-5 w-5" />} accent="green" />
-        <StatCard title="Pending Reports" value="2" hint="Due this week" icon={<ClipboardCheck className="h-5 w-5" />} accent="orange" />
+        <StatCard title="Total Students" value={fetchingStats ? "..." : String(stats.totalStudents)} hint="Total enrolled" icon={<Users className="h-5 w-5" />} accent="magenta" />
+        <StatCard title="Avg. Attendance" value={fetchingStats ? "..." : `${stats.avgAttendance}%`} hint="Overall" icon={<Percent className="h-5 w-5" />} accent="green" />
+        <StatCard title="Pending Reports" value="0" hint="Due this week" icon={<ClipboardCheck className="h-5 w-5" />} accent="orange" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

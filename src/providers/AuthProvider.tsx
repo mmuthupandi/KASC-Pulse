@@ -4,11 +4,12 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { toast } from "sonner";
 
-interface AppUser {
+export interface AppUser {
   uid: string;
   email: string | null;
-  role: "student" | "faculty" | "admin" | "parent";
+  role: "student" | "faculty" | "hod" | "admin" | "parent";
   name?: string;
   isTutor?: boolean;
   classId?: string;
@@ -17,7 +18,7 @@ interface AppUser {
   department?: string;
   semester?: string;
   stream?: string;
-  // Faculty fields
+  // Faculty / HOD fields
   designation?: string;
   subjects?: string[]; // subject codes e.g. ["24USC506", "24USC505"]
 }
@@ -49,11 +50,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ...userData,
             });
           } else {
+            // Authenticated but no Firestore profile — sign them out and explain
+            await auth.signOut();
             setUser(null);
+            toast.error("Account not set up yet. Contact your administrator.");
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
           setUser(null);
+          toast.error("Failed to load your profile. Please try again.");
         }
       } else {
         setUser(null);

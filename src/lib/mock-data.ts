@@ -51,10 +51,11 @@ export const subjectAttendance = [
   { subject: "EDC", percentage: 87 },
 ];
 
+const currentYear = new Date().getFullYear();
 export const notifications = [
-  { title: "Internal Exam Schedule Published (Even Semester)", date: "20 May 2024" },
-  { title: "DBT Star College Guest Lecture - BioTech", date: "18 May 2024" },
-  { title: "Fees Payment Deadline for Un-Aided Stream", date: "17 May 2024" },
+  { title: "Internal Exam Schedule Published (Even Semester)", date: `20 May ${currentYear}` },
+  { title: "DBT Star College Guest Lecture - BioTech", date: `18 May ${currentYear}` },
+  { title: "Fees Payment Deadline for Un-Aided Stream", date: `17 May ${currentYear}` },
 ];
 
 export type HeatCell = { date: string; status: "present" | "absent" | "leave" | "none" };

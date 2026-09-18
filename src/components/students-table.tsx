@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,13 +9,33 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Upload, Download, Trash2, Pencil } from "lucide-react";
-import { students } from "@/lib/mock-data";
+import { Search, Plus, Upload, Download, Trash2, Pencil, Loader2 } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 export function StudentsTable() {
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("all");
   const [page, setPage] = useState(1);
+  const [students, setStudents] = useState<any[]>([]);
+  const [fetching, setFetching] = useState(true);
+
+  useEffect(() => {
+    async function fetchStudents() {
+      try {
+        const q = query(collection(db, "users"), where("role", "==", "student"));
+        const snap = await getDocs(q);
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data(), attendance: 0 })); // Attendance can be fetched separately if needed
+        setStudents(data);
+      } catch (err) {
+        toast.error("Failed to fetch students");
+      } finally {
+        setFetching(false);
+      }
+    }
+    fetchStudents();
+  }, []);
+
   const perPage = 8;
 
   const filtered = students.filter(
@@ -69,7 +89,7 @@ export function StudentsTable() {
               <TableCell className="font-mono text-sm">{s.rollNo}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8"><AvatarImage src={s.avatar} /><AvatarFallback>{s.name.slice(0,2)}</AvatarFallback></Avatar>
+                  <Avatar className="h-8 w-8"><AvatarFallback>{s.name?.slice(0,2) || "?"}</AvatarFallback></Avatar>
                   <span className="font-medium">{s.name}</span>
                 </div>
               </TableCell>
@@ -90,6 +110,16 @@ export function StudentsTable() {
               </TableCell>
             </TableRow>
           ))}
+          {fetching && (
+            <TableRow>
+              <TableCell colSpan={8} className="py-10 text-center text-muted-foreground"><Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" /></TableCell>
+            </TableRow>
+          )}
+          {!fetching && paged.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">No students found.</TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
 

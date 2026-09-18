@@ -83,7 +83,7 @@ function TakeAttendance() {
   const [subjectCode, setSubjectCode] = useState(defaultSubject);
   const [period, setPeriod] = useState("1");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [classId] = useState("b"); // III B.Sc. CS Un-Aided
+  const [classId] = useState(user?.classId || "b"); // Default to b if no classId
 
   // Keep subject in sync when allowedSubjects loads
   useEffect(() => {
@@ -123,28 +123,16 @@ function TakeAttendance() {
         const snap = await getDocs(
           query(collection(db, "users"), where("role", "==", "student"))
         );
-        if (!snap.empty) {
-          const real = snap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              name: data.name || "Unknown",
-              rollNo: data.rollNo || data.email?.split("@")[0].toUpperCase() || "—",
-              department: data.department || "B.Sc CS",
-              marked: "present" as Status,
-            };
-          });
-          const realRolls = new Set(real.map((r) => r.rollNo.toUpperCase()));
-          const mockFiltered = mockStudents
-            .filter((m) => !realRolls.has(m.rollNo.toUpperCase()))
-            .map((m) => ({ id: String(m.id), name: m.name, rollNo: m.rollNo, department: m.department, marked: "present" as Status }));
-          studentList = [...real, ...mockFiltered].sort((a, b) => a.rollNo.localeCompare(b.rollNo));
-        } else {
-          studentList = mockStudents.map((m) => ({
-            id: String(m.id), name: m.name, rollNo: m.rollNo,
-            department: m.department, marked: "present" as Status,
-          }));
-        }
+        studentList = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            name: data.name || "Unknown",
+            rollNo: data.rollNo || data.email?.split("@")[0].toUpperCase() || "—",
+            department: data.department || "B.Sc CS",
+            marked: "present" as Status,
+          };
+        }).sort((a, b) => a.rollNo.localeCompare(b.rollNo));
 
         // 2. Load existing attendance for this slot
         const attSnap = await getDocs(

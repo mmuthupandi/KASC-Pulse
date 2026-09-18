@@ -1,7 +1,4 @@
-"use client";
-import { makeHeatmap } from "@/lib/mock-data";
-
-const grid = makeHeatmap();
+import { HeatCell } from "@/lib/mock-data";
 
 const colorFor = (s: string) => {
   switch (s) {
@@ -16,7 +13,8 @@ const colorFor = (s: string) => {
   }
 };
 
-export function Heatmap() {
+export function Heatmap({ data }: { data: HeatCell[][] }) {
+  if (!data || data.length === 0) return null;
   return (
     <div className="space-y-3">
       <div className="flex gap-[3px] overflow-x-auto">
@@ -30,7 +28,7 @@ export function Heatmap() {
           <span>S</span>
         </div>
         <div className="flex flex-col gap-[3px]">
-          {grid.map((row, r) => (
+          {data.map((row, r) => (
             <div key={r} className="flex gap-[3px]">
               {row.map((cell, c) => (
                 <div
