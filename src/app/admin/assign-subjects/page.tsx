@@ -32,6 +32,7 @@ interface FacultyDoc {
   designation?: string;
   isTutor?: boolean;
   subjects?: string[];
+  allowedSubjects?: string[];
 }
 
 export default function AssignSubjectsPage() {

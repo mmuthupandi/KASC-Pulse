@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
 import { Heatmap } from "@/components/heatmap";
-import { subjectAttendance, notifications, weeklyTimetable } from "@/lib/mock-data";
-import { useEffect, useState } from "react";
+import { subjectAttendance, notifications, weeklyTimetable, makeHeatmap } from "@/lib/mock-data";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { collection, query, where, onSnapshot, getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -258,7 +258,7 @@ function StudentDashboard() {
             <h3 className="font-semibold">Monthly Attendance Overview</h3>
             <span className="text-xs text-muted-foreground">Jan – Jun</span>
           </div>
-          <Heatmap />
+          <Heatmap data={makeHeatmap()} />
         </Card>
 
         <Card className="p-5">

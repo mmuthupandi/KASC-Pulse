@@ -51,6 +51,7 @@ function FacultyDashboard() {
   useEffect(() => {
     if (!user) return;
     async function loadStats() {
+      if (!user) return;
       try {
         const studentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student")));
         const totalStudents = studentsSnap.size;
