@@ -6,77 +6,42 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Upload, Download, Trash2, Pencil, Loader2 } from "lucide-react";
+import { Search, Plus, Upload, Download, Trash2, Pencil, Loader2, ShieldCheck } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
-export function StudentsTable() {
+export function FacultyTable() {
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("all");
   const [page, setPage] = useState(1);
-  const [students, setStudents] = useState<any[]>([]);
+  const [faculty, setFaculty] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    async function fetchStudents() {
+    async function fetchFaculty() {
       try {
-        const q = query(collection(db, "users"), where("role", "==", "student"));
+        const q = query(collection(db, "users"), where("role", "==", "faculty"));
         const snap = await getDocs(q);
-        
-        // Fetch attendance records to compute percentage
-        const attSnap = await getDocs(collection(db, "attendance"));
-        const records = attSnap.docs.map(d => d.data());
-        
-        const classSessions: Record<string, Set<string>> = {};
-        const studentStats: Record<string, { present: number }> = {};
-        const studentClassMap: Record<string, string> = {};
-
-        records.forEach(r => {
-          if (!r.date || !r.studentId) return;
-          const sId = r.studentId;
-          const cId = r.classId || "unknown";
-          
-          studentClassMap[sId] = cId;
-          
-          if (!classSessions[cId]) classSessions[cId] = new Set();
-          classSessions[cId].add(`${r.date}-${r.period}`);
-          
-          if (!studentStats[sId]) studentStats[sId] = { present: 0 };
-          if (r.status === "present") studentStats[sId].present++;
-        });
-
-        const data = snap.docs.map(d => {
-          const sId = d.id;
-          const cId = studentClassMap[sId] || "unknown";
-          const totalWorkingDays = classSessions[cId]?.size || 0;
-          const present = studentStats[sId]?.present || 0;
-          
-          let attendancePct = 0;
-          if (totalWorkingDays > 0) {
-            attendancePct = Math.round((present / totalWorkingDays) * 100);
-          }
-          
-          return { id: sId, ...d.data(), attendance: attendancePct };
-        });
-        setStudents(data);
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setFaculty(data);
       } catch (err) {
-        toast.error("Failed to fetch students");
+        toast.error("Failed to fetch faculty");
       } finally {
         setFetching(false);
       }
     }
-    fetchStudents();
+    fetchFaculty();
   }, []);
 
   const perPage = 8;
 
-  const filtered = students.filter(
-    (s) =>
-      (dept === "all" || s.department === dept) &&
-      (s.name.toLowerCase().includes(q.toLowerCase()) || s.rollNo.toLowerCase().includes(q.toLowerCase())),
+  const filtered = faculty.filter(
+    (f) =>
+      (dept === "all" || f.department === dept) &&
+      (f.name?.toLowerCase().includes(q.toLowerCase()) || f.email?.toLowerCase().includes(q.toLowerCase())),
   );
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -87,7 +52,7 @@ export function StudentsTable() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search students..." className="h-10 w-64 rounded-xl pl-9" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search faculty..." className="h-10 w-64 rounded-xl pl-9" />
           </div>
           <Select value={dept} onValueChange={setDept}>
             <SelectTrigger className="h-10 w-48 rounded-xl"><SelectValue placeholder="Department" /></SelectTrigger>
@@ -100,7 +65,7 @@ export function StudentsTable() {
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="rounded-xl"><Upload className="mr-2 h-4 w-4" />Import</Button>
           <Button variant="outline" className="rounded-xl"><Download className="mr-2 h-4 w-4" />Export</Button>
-          <Button className="rounded-xl" onClick={() => toast.success("Add student")}><Plus className="mr-2 h-4 w-4" />Add Student</Button>
+          <Button className="rounded-xl" onClick={() => toast.success("Add faculty")}><Plus className="mr-2 h-4 w-4" />Add Faculty</Button>
         </div>
       </div>
 
@@ -108,36 +73,32 @@ export function StudentsTable() {
         <TableHeader>
           <TableRow>
             <TableHead className="w-10"><Checkbox /></TableHead>
-            <TableHead>Roll No.</TableHead>
-            <TableHead>Student</TableHead>
+            <TableHead>Faculty</TableHead>
             <TableHead>Department</TableHead>
-            <TableHead>Sem</TableHead>
-            <TableHead>Section</TableHead>
-            <TableHead>Attendance</TableHead>
+            <TableHead>Designation</TableHead>
+            <TableHead>Tutor</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paged.map((s) => (
-            <TableRow key={s.id}>
+          {paged.map((f) => (
+            <TableRow key={f.id}>
               <TableCell><Checkbox /></TableCell>
-              <TableCell className="font-mono text-sm">{s.rollNo}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8"><AvatarFallback>{s.name?.slice(0,2) || "?"}</AvatarFallback></Avatar>
-                  <span className="font-medium">{s.name}</span>
+                  <Avatar className="h-8 w-8"><AvatarFallback>{f.name?.slice(0,2).toUpperCase() || "?"}</AvatarFallback></Avatar>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{f.name || "Unknown"}</span>
+                    <span className="text-xs text-muted-foreground">{f.email || "—"}</span>
+                  </div>
                 </div>
               </TableCell>
-              <TableCell>{s.department}</TableCell>
-              <TableCell>{s.semester}</TableCell>
-              <TableCell>{s.section}</TableCell>
+              <TableCell>{f.department || "—"}</TableCell>
               <TableCell>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                    <div className={`h-full rounded-full ${s.attendance >= 85 ? "bg-emerald-500" : s.attendance >= 75 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${s.attendance}%` }} />
-                  </div>
-                  <span className="text-xs text-muted-foreground">{s.attendance}%</span>
-                </div>
+                {f.designation ? <Badge variant="outline">{f.designation}</Badge> : "—"}
+              </TableCell>
+              <TableCell>
+                {f.isTutor ? <Badge className="bg-primary/10 text-primary hover:bg-primary/20"><ShieldCheck className="h-3 w-3 mr-1"/> Yes</Badge> : "No"}
               </TableCell>
               <TableCell className="text-right">
                 <Button size="icon" variant="ghost" className="rounded-lg"><Pencil className="h-4 w-4" /></Button>
@@ -147,12 +108,12 @@ export function StudentsTable() {
           ))}
           {fetching && (
             <TableRow>
-              <TableCell colSpan={8} className="py-10 text-center text-muted-foreground"><Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" /></TableCell>
+              <TableCell colSpan={6} className="py-10 text-center text-muted-foreground"><Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" /></TableCell>
             </TableRow>
           )}
           {!fetching && paged.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">No students found.</TableCell>
+              <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">No faculty found.</TableCell>
             </TableRow>
           )}
         </TableBody>

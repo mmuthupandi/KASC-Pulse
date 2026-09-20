@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, File, X } from "lucide-react";
 import { useAuth } from "@/providers/AuthProvider";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot } from "firebase/firestore";
@@ -23,6 +23,7 @@ function LeavePage() {
   const [reason, setReason] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
@@ -61,6 +62,24 @@ function LeavePage() {
       const diffTime = Math.abs(to.getTime() - from.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
       
+      let base64Data: string | null = null;
+      let fileName: string | null = null;
+      
+      if (file) {
+        if (file.size > 700 * 1024) {
+          toast.error("File is too large. Max size is 700KB.");
+          setSubmitting(false);
+          return;
+        }
+        fileName = file.name;
+        base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
       await addDoc(collection(db, "leaveRequests"), {
         studentName: user.name || "Student",
         rollNo: user.rollNo || "Unknown",
@@ -71,7 +90,8 @@ function LeavePage() {
         fromDate,
         toDate,
         status: "pending",
-        attachment: null, // mocked for now
+        attachment: fileName,
+        attachmentData: base64Data,
         studentId: user.uid,
         createdAt: new Date().toISOString()
       });
@@ -80,6 +100,7 @@ function LeavePage() {
       setReason("");
       setFromDate("");
       setToDate("");
+      setFile(null);
     } catch (error: any) {
       toast.error(error.message || "Failed to submit request");
     } finally {
@@ -123,9 +144,48 @@ function LeavePage() {
             </div>
             <div className="space-y-2">
               <Label>Attachment</Label>
-              <div className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground hover:bg-muted/40">
-                <Upload className="mb-2 h-5 w-5" />
-                Click to upload or drag &amp; drop
+              <div 
+                className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border p-6 text-center text-sm transition-colors ${
+                  file ? 'border-primary/50 bg-primary/5' : 'border-dashed text-muted-foreground hover:bg-muted/40'
+                }`}
+              >
+                <input 
+                  type="file" 
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setFile(e.target.files[0]);
+                    }
+                  }}
+                  title="" // removes default browser tooltip
+                />
+                
+                {file ? (
+                  <div className="flex flex-col items-center">
+                    <File className="mb-2 h-6 w-6 text-primary" />
+                    <span className="font-medium text-foreground">{file.name}</span>
+                    <span className="text-xs text-muted-foreground mt-1">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute top-2 right-2 h-8 w-8 p-0 rounded-full hover:bg-rose-100 hover:text-rose-600 z-10"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setFile(null);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="mb-2 h-5 w-5" />
+                    <span>Click to upload or drag &amp; drop</span>
+                  </>
+                )}
               </div>
             </div>
             <Button

@@ -56,6 +56,8 @@ const adminNav = [
   { title: "Assign Subjects", url: "/admin/assign-subjects", icon: BookMarked },
   { title: "Departments", url: "/admin/departments", icon: Building2 },
   { title: "Subjects", url: "/admin/subjects", icon: BookOpen },
+  { title: "Calendar", url: "/admin/calendar", icon: Calendar },
+  { title: "Feedback", url: "/admin/feedback", icon: Bell },
   { title: "Reports", url: "/admin/reports", icon: FileBarChart },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];

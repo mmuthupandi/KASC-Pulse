@@ -52,44 +52,50 @@ export default function StudentsPage() {
           query(collection(db, "users"), where("role", "==", "student"))
         );
 
-        let list: StudentRow[] = [];
-        if (!snap.empty) {
-          const real = snap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              name: data.name || "Unknown",
-              rollNo: data.rollNo || data.email?.split("@")[0].toUpperCase() || "—",
-              department: data.department || "B.Sc. Computer Science",
-              semester: data.semester || "—",
-              stream: data.stream || "—",
-              attendance: 0,
-            };
-          });
-          const realRolls = new Set(real.map((r) => r.rollNo.toUpperCase()));
-          const mockFilled = mockStudents
-            .filter((m) => !realRolls.has(m.rollNo.toUpperCase()))
-            .map((m) => ({
-              id: String(m.id),
-              name: m.name,
-              rollNo: m.rollNo,
-              department: m.department,
-              semester: m.semester,
-              stream: m.stream,
-              attendance: m.attendance,
-            }));
-          list = [...real, ...mockFilled].sort((a, b) => a.rollNo.localeCompare(b.rollNo));
-        } else {
-          list = mockStudents.map((m) => ({
-            id: String(m.id),
-            name: m.name,
-            rollNo: m.rollNo,
-            department: m.department,
-            semester: m.semester,
-            stream: m.stream,
-            attendance: m.attendance,
-          }));
-        }
+        // Fetch attendance records to compute percentage
+        const attSnap = await getDocs(collection(db, "attendance"));
+        const records = attSnap.docs.map(d => d.data());
+        
+        const classSessions: Record<string, Set<string>> = {};
+        const studentStats: Record<string, { present: number }> = {};
+        const studentClassMap: Record<string, string> = {};
+
+        records.forEach(r => {
+          if (!r.date || !r.studentId) return;
+          const sId = r.studentId;
+          const cId = r.classId || "unknown";
+          
+          studentClassMap[sId] = cId;
+          
+          if (!classSessions[cId]) classSessions[cId] = new Set();
+          classSessions[cId].add(`${r.date}-${r.period}`);
+          
+          if (!studentStats[sId]) studentStats[sId] = { present: 0 };
+          if (r.status === "present") studentStats[sId].present++;
+        });
+
+        const list = snap.docs.map((d) => {
+          const data = d.data();
+          const sId = d.id;
+          const cId = studentClassMap[sId] || "unknown";
+          const totalWorkingDays = classSessions[cId]?.size || 0;
+          const present = studentStats[sId]?.present || 0;
+          
+          let attendancePct = 0;
+          if (totalWorkingDays > 0) {
+            attendancePct = Math.round((present / totalWorkingDays) * 100);
+          }
+          
+          return {
+            id: sId,
+            name: data.name || "Unknown",
+            rollNo: data.rollNo || data.email?.split("@")[0].toUpperCase() || "—",
+            department: data.department || "B.Sc. Computer Science",
+            semester: data.semester || "—",
+            stream: data.stream || "—",
+            attendance: attendancePct,
+          };
+        }).sort((a, b) => a.rollNo.localeCompare(b.rollNo, undefined, { numeric: true, sensitivity: 'base' }));
         setStudents(list);
       } catch (err) {
         console.error(err);

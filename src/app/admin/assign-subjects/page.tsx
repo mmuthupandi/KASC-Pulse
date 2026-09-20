@@ -10,6 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { useAuth } from "@/providers/AuthProvider";
 
 // ─── Subject catalogue (matches mock-data SUBJECTS) ──────────────────────────
 const ALL_SUBJECTS = [
@@ -32,26 +35,31 @@ interface FacultyDoc {
 }
 
 export default function AssignSubjectsPage() {
+  const { user, loading: authLoading } = useAuth();
   const [faculty, setFaculty] = useState<FacultyDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  // local edits: uid → { subjects, isTutor }
   const [edits, setEdits] = useState<Record<string, { subjects: string[]; isTutor: boolean }>>({});
 
   useEffect(() => {
-    fetch("/api/admin/assign-subjects")
-      .then((r) => r.json())
-      .then((data) => {
-        setFaculty(data.faculty ?? []);
-        // seed local edits from current values
+    async function loadFaculty() {
+      try {
+        const snap = await getDocs(query(collection(db, "users"), where("role", "==", "faculty")));
+        const facs = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as FacultyDoc));
+        setFaculty(facs);
+        
         const init: typeof edits = {};
-        for (const f of data.faculty ?? []) {
-          init[f.uid] = { subjects: f.subjects ?? [], isTutor: f.isTutor ?? false };
+        for (const f of facs) {
+          init[f.uid] = { subjects: f.subjects || f.allowedSubjects || [], isTutor: f.isTutor ?? false };
         }
         setEdits(init);
-      })
-      .catch(() => toast.error("Failed to load faculty list"))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        toast.error("Failed to load faculty list");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFaculty();
   }, []);
 
   function toggleSubject(uid: string, code: string) {
@@ -73,16 +81,16 @@ export default function AssignSubjectsPage() {
     setSaving(uid);
     try {
       const payload = edits[uid] ?? { subjects: [], isTutor: false };
-      const res = await fetch("/api/admin/assign-subjects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ facultyUid: uid, ...payload }),
+      // Save directly to Firestore using updateDoc
+      const userRef = doc(db, "users", uid);
+      await updateDoc(userRef, {
+        allowedSubjects: payload.subjects,
+        subjects: payload.subjects, // Keeping both in case logic depends on either
+        isTutor: payload.isTutor
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      
       toast.success("Subjects saved successfully");
-      // update local faculty list
-      setFaculty((prev) => prev.map((f) => f.uid === uid ? { ...f, ...payload } : f));
+      setFaculty((prev) => prev.map((f) => f.uid === uid ? { ...f, ...payload, allowedSubjects: payload.subjects } : f));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
@@ -120,7 +128,7 @@ export default function AssignSubjectsPage() {
           const isSaving = saving === f.uid;
           const isDirty =
             JSON.stringify([...(edit.subjects ?? [])].sort()) !==
-              JSON.stringify([...(f.subjects ?? [])].sort()) ||
+              JSON.stringify([...(f.subjects || f.allowedSubjects || [])].sort()) ||
             edit.isTutor !== (f.isTutor ?? false);
 
           return (

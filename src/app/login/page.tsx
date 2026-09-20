@@ -196,11 +196,10 @@ function Login() {
             <p className="mt-2 text-sm text-muted-foreground">Sign in to continue to your dashboard.</p>
 
             <Tabs value={role} onValueChange={(v) => { setRole(v as any); setShowOtp(false); setOtp(""); }} className="mt-6">
-              <TabsList className="grid w-full grid-cols-4 rounded-xl">
+              <TabsList className="grid w-full grid-cols-3 rounded-xl">
                 <TabsTrigger value="student" className="rounded-lg text-xs md:text-sm">Student</TabsTrigger>
                 <TabsTrigger value="parent" className="rounded-lg text-xs md:text-sm">Parent</TabsTrigger>
                 <TabsTrigger value="faculty" className="rounded-lg text-xs md:text-sm">Faculty</TabsTrigger>
-                <TabsTrigger value="admin" className="rounded-lg text-xs md:text-sm">Admin</TabsTrigger>
               </TabsList>
               
               <AnimatePresence mode="wait">
@@ -277,12 +276,6 @@ function Login() {
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Sign in <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
-                      <p className="text-center text-sm text-muted-foreground mt-4">
-                        Don't have an account?{" "}
-                        <Link href="/register" className="font-medium text-primary hover:underline">
-                          Create one
-                        </Link>
-                      </p>
                     </form>
                   )}
                 </motion.div>

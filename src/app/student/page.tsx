@@ -8,11 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
 import { Heatmap } from "@/components/heatmap";
-import { subjectAttendance, notifications } from "@/lib/mock-data";
+import { subjectAttendance, notifications, weeklyTimetable } from "@/lib/mock-data";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/providers/AuthProvider";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { FeedbackBanner } from "@/components/feedback-banner";
+import { getDynamicGreeting } from "@/lib/utils";
+
+const DAY_ORDER_MAP: Record<string, number> = {
+  "I": 0, "II": 1, "III": 2, "IV": 3, "V": 4, "VI": 5
+};
 
 export default function Page() { 
   return <StudentDashboard />; 
@@ -23,12 +29,11 @@ function StudentDashboard() {
   const router = useRouter();
   
   const [timetable, setTimetable] = useState([
-    { period: 1, time: "10:00 AM - 11:00 AM", subject: "Operating Systems",              room: "Class Room", faculty: "Dr. M. Jagadheeswari",    status: "upcoming" },
-    { period: 2, time: "11:00 AM - 12:00 PM", subject: "Software Engineering & Testing", room: "Class Room", faculty: "Dr. Nithya A",            status: "upcoming" },
-    { period: 3, time: "12:00 PM - 01:00 PM", subject: "EDC",                            room: "Class Room", faculty: "—",                       status: "upcoming" },
-    { period: 4, time: "02:00 PM - 03:00 PM", subject: "DBMS Lab",                       room: "Lab",        faculty: "Dr. Saravana Moorthy R",  status: "upcoming" },
-    { period: 5, time: "03:00 PM - 04:00 PM", subject: "Database Management System",     room: "Class Room", faculty: "Mrs. Vanjimalar S",       status: "upcoming" },
+    { period: 1, time: "10:00 AM - 11:00 AM", subject: "Loading...", room: "", faculty: "", status: "upcoming" },
   ]);
+  const [dayOrderLabel, setDayOrderLabel] = useState("");
+  const [isHoliday, setIsHoliday] = useState(false);
+
   const [overallPercentage, setOverallPercentage] = useState(100);
   const [dynamicSubjectAttendance, setDynamicSubjectAttendance] = useState([
     { subject: "Operating Systems",             percentage: 100 },
@@ -38,6 +43,13 @@ function StudentDashboard() {
     { subject: "DBMS Lab",                      percentage: 100 },
     { subject: "EDC",                           percentage: 100 },
   ]);
+  const [greeting, setGreeting] = useState("Welcome back!");
+
+  useEffect(() => {
+    if (user?.name) {
+      setGreeting(getDynamicGreeting(user.name.split(" ")[0] || "Student"));
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "student")) {
@@ -53,7 +65,7 @@ function StudentDashboard() {
         where("studentId", "==", user.uid)
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
         const allRecords = snapshot.docs.map(doc => doc.data());
         
         if (allRecords.length > 0) {
@@ -85,16 +97,50 @@ function StudentDashboard() {
         }));
         setDynamicSubjectAttendance(newSubjectData);
 
+        // Fetch today's day order from academicCalendar
+        let dayOrder = "I";
+        let workingDay = true;
+        try {
+          const calSnap = await getDoc(doc(db, "academicCalendar", today));
+          if (calSnap.exists()) {
+            const calData = calSnap.data();
+            if (calData.dayOrder && DAY_ORDER_MAP[calData.dayOrder] !== undefined) {
+              dayOrder = calData.dayOrder;
+            }
+            workingDay = calData.isWorkingDay;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+
+        if (!workingDay) {
+          setIsHoliday(true);
+          setDayOrderLabel("Holiday");
+          setTimetable([]);
+          return;
+        }
+
+        const dayIndex = DAY_ORDER_MAP[dayOrder] ?? 0;
+        setDayOrderLabel(`Day Order ${dayOrder}`);
+        const todaySlots = weeklyTimetable[dayIndex].slots;
+
         // Filter by date in memory to avoid needing a composite index in Firestore
         const attendanceRecords = allRecords.filter(r => r.date === today);
         
-        setTimetable(prev => prev.map(slot => {
-          const record = attendanceRecords.find(r => r.period === slot.period);
-          if (record) {
-            return { ...slot, status: record.status }; // present or absent
-          }
-          return { ...slot, status: "upcoming" };
-        }));
+        const mappedTimetable = todaySlots.map((slot, idx) => {
+          const period = idx + 1;
+          const record = attendanceRecords.find(r => r.period === period);
+          return {
+            period,
+            time: slot.time,
+            subject: slot.subject,
+            room: "Class Room", // Mock room
+            faculty: slot.faculty,
+            status: record ? record.status : "upcoming"
+          };
+        });
+        
+        setTimetable(mappedTimetable);
       });
 
       return () => unsubscribe();
@@ -110,9 +156,10 @@ function StudentDashboard() {
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
+      <FeedbackBanner />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-          Good morning, {user.name?.split(" ")[0] || "Student"}! 👋
+          {greeting}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -143,11 +190,16 @@ function StudentDashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">Today's Timetable (5 Periods)</h3>
+            <h3 className="font-semibold">Today's Timetable <span className="text-muted-foreground ml-2 text-sm font-normal">{dayOrderLabel}</span></h3>
             <Link href="/student/timetable" className="text-sm text-primary hover:underline">View full timetable</Link>
           </div>
           <div className="space-y-2">
-            {timetable.map((row) => (
+            {isHoliday && (
+              <div className="flex h-32 items-center justify-center rounded-xl border border-dashed text-muted-foreground bg-muted/20">
+                Today is marked as a Holiday.
+              </div>
+            )}
+            {!isHoliday && timetable.map((row) => (
               <div key={row.period} className="flex items-center justify-between rounded-xl border p-3 transition hover:bg-muted/40">
                 <div className="flex items-center gap-3">
                   <div className="w-24 text-sm font-medium text-muted-foreground">{row.time}</div>

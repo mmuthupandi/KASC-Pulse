@@ -18,6 +18,7 @@ import { db } from "@/lib/firebase";
 import { writeBatch, doc, collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/providers/AuthProvider";
 import { weeklyTimetable } from "@/lib/mock-data";
+import { Info } from "lucide-react";
 
 // ─── Subject catalogue (single source of truth) ───────────────────────────────
 const ALL_SUBJECTS = [
@@ -62,21 +63,6 @@ function TakeAttendance() {
     return ALL_SUBJECTS.filter((s) => user.subjects!.includes(s.code));
   }, [user]);
 
-  // ─── Derive allowed periods for a given subject from the timetable ───────
-  function allowedPeriodsForSubject(subjectCode: string): number[] {
-    if (!user) return [];
-    if (user.isTutor || user.role === "admin") return [1, 2, 3, 4, 5];
-    const periods = new Set<number>();
-    weeklyTimetable.forEach((day) => {
-      day.slots.forEach((slot, idx) => {
-        if (slot.code === subjectCode) {
-          // idx is 0-based, period is 1-based
-          periods.add(idx + 1);
-        }
-      });
-    });
-    return Array.from(periods).sort();
-  }
 
   // ─── Form state ───────────────────────────────────────────────────────────
   const defaultSubject = allowedSubjects[0]?.code ?? "";
@@ -92,17 +78,102 @@ function TakeAttendance() {
     }
   }, [allowedSubjects, subjectCode]);
 
-  // Keep period in sync when subject changes
-  const allowedPeriods = useMemo(
-    () => allowedPeriodsForSubject(subjectCode),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [subjectCode, user]
-  );
+  const [calendar, setCalendar] = useState<Record<string, { isWorkingDay: boolean; dayOrder?: string }>>({});
+
+  // ─── Derive allowed periods for a given subject based on Day Order ───────
+  const allowedPeriods = useMemo(() => {
+    if (!user) return [];
+    if (user.isTutor || user.role === "admin") return [1, 2, 3, 4, 5];
+    
+    const periods = new Set<number>();
+    const calDay = calendar[date];
+    const romanMap: Record<string, number> = { "I": 0, "II": 1, "III": 2, "IV": 3, "V": 4, "VI": 5 };
+    
+    if (calDay && calDay.dayOrder && romanMap[calDay.dayOrder] !== undefined) {
+      const dayIndex = romanMap[calDay.dayOrder];
+      const daySchedule = weeklyTimetable[dayIndex];
+      daySchedule?.slots.forEach((slot, idx) => {
+        if (slot.code === subjectCode) periods.add(idx + 1);
+      });
+    } else {
+      // Fallback: all possible periods for the week
+      weeklyTimetable.forEach((day) => {
+        day.slots.forEach((slot, idx) => {
+          if (slot.code === subjectCode) periods.add(idx + 1);
+        });
+      });
+    }
+    return Array.from(periods).sort();
+  }, [subjectCode, user, date, calendar]);
+
+  // Keep period in sync when allowed periods change
   useEffect(() => {
     if (allowedPeriods.length > 0 && !allowedPeriods.includes(Number(period))) {
       setPeriod(String(allowedPeriods[0]));
     }
   }, [allowedPeriods, period]);
+
+  
+  useEffect(() => {
+    async function loadCalendar() {
+      try {
+        const snap = await getDocs(collection(db, "academicCalendar"));
+        const calData: Record<string, any> = {};
+        snap.forEach(d => { calData[d.id] = d.data(); });
+        setCalendar(calData);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadCalendar();
+  }, []);
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const isFuture = date > todayStr;
+  const calDay = calendar[date];
+  const isHoliday = calDay && !calDay.isWorkingDay;
+  const isLocked = isFuture || isHoliday;
+
+  // ─── Auto-Suggest Class & Period ─────────────────────────────────────────
+  const [autoSelected, setAutoSelected] = useState(false);
+
+  useEffect(() => {
+    if (autoSelected || !user || Object.keys(calendar).length === 0) return;
+    
+    // Only auto-select for today
+    if (date !== todayStr) return;
+
+    const todayCal = calendar[todayStr];
+    if (!todayCal || !todayCal.dayOrder) return; // Holiday or no day order
+
+    const romanMap: Record<string, number> = { "I": 0, "II": 1, "III": 2, "IV": 3, "V": 4, "VI": 5 };
+    const dayIndex = romanMap[todayCal.dayOrder];
+    if (dayIndex === undefined) return;
+
+    const daySchedule = weeklyTimetable[dayIndex];
+    if (!daySchedule) return;
+
+    // Determine current period from clock
+    const hour = new Date().getHours();
+    let currentPeriod = 1; // Default to 1 if testing outside hours
+    
+    if (hour >= 10 && hour < 11) currentPeriod = 1;
+    else if (hour >= 11 && hour < 12) currentPeriod = 2;
+    else if (hour >= 12 && hour < 14) currentPeriod = 3; // 12-1 is P3, 1-2 is lunch so we just keep it P3
+    else if (hour >= 14 && hour < 15) currentPeriod = 4;
+    else if (hour >= 15 && hour < 17) currentPeriod = 5; 
+
+    const slot = daySchedule.slots[currentPeriod - 1];
+    if (slot) {
+      const isAllowed = user.isTutor || user.role === "admin" || (user.subjects && user.subjects.includes(slot.code));
+      if (isAllowed) {
+        setSubjectCode(slot.code);
+        setPeriod(String(currentPeriod));
+        toast.info(`Auto-selected ${slot.subject} (Period ${currentPeriod}) based on today's timetable.`);
+        setAutoSelected(true);
+      }
+    }
+  }, [calendar, user, autoSelected, date, todayStr]);
 
   // ─── Students + attendance ────────────────────────────────────────────────
   const [rows, setRows] = useState<StudentRow[]>([]);
@@ -242,6 +313,18 @@ function TakeAttendance() {
         </p>
       </div>
 
+      {isLocked && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300 flex items-start gap-3">
+          <Info className="h-5 w-5 mt-0.5 shrink-0" />
+          <div>
+            <h4 className="font-semibold text-sm">Attendance Locked</h4>
+            <p className="text-sm opacity-90 mt-1">
+              {isFuture ? "You cannot mark attendance for future dates." : "This date is marked as a Holiday in the Academic Calendar."}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Controls */}
       <Card className="p-5 relative overflow-hidden">
         {fetching && (
@@ -315,19 +398,19 @@ function TakeAttendance() {
 
       {/* Table */}
       <Card className="p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
+        <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search students…" className="h-10 w-64 rounded-xl pl-9" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search students…" className="h-10 w-full sm:w-64 rounded-xl pl-9" />
             </div>
-            <div className="flex bg-muted/50 p-1 rounded-xl gap-1">
+            <div className="flex bg-muted/50 p-1 rounded-xl gap-1 w-full sm:w-auto">
               {(["all", "present", "absent"] as const).map((f) => (
                 <Button
                   key={f}
                   variant={filter === f ? "default" : "ghost"}
                   size="sm"
-                  className={`rounded-lg h-8 px-4 capitalize ${
+                  className={`flex-1 sm:flex-none rounded-lg h-8 px-4 capitalize ${
                     filter === f && f === "present" ? "bg-emerald-600 hover:bg-emerald-700 text-white" :
                     filter === f && f === "absent"  ? "bg-rose-600 hover:bg-rose-700 text-white" : ""
                   }`}
@@ -338,18 +421,19 @@ function TakeAttendance() {
               ))}
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="rounded-xl" onClick={markAllPresent} disabled={fetching}>
+          <div className="flex w-full sm:w-auto gap-2">
+            <Button variant="outline" className="flex-1 sm:flex-none rounded-xl" onClick={markAllPresent} disabled={fetching || isLocked}>
               Mark All Present
             </Button>
-            <Button className="rounded-xl" onClick={handleSave} disabled={saving || fetching}>
+            <Button className="flex-1 sm:flex-none rounded-xl" onClick={handleSave} disabled={saving || fetching || isLocked}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save Attendance
+              Save
             </Button>
           </div>
         </div>
 
-        <Table>
+        <div className="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-10 hidden sm:table-cell"><Checkbox /></TableHead>
@@ -386,13 +470,13 @@ function TakeAttendance() {
                       size="sm" variant="outline"
                       className={`h-8 w-10 rounded-lg ${s.marked === "present" ? "bg-emerald-600 hover:bg-emerald-700 text-white border-transparent" : ""}`}
                       onClick={() => setStatus(s.id, "present")}
-                      disabled={fetching}
+                      disabled={fetching || isLocked}
                     >P</Button>
                     <Button
                       size="sm" variant="outline"
                       className={`h-8 w-10 rounded-lg ${s.marked === "absent" ? "bg-rose-600 hover:bg-rose-700 text-white border-transparent" : ""}`}
                       onClick={() => setStatus(s.id, "absent")}
-                      disabled={fetching}
+                      disabled={fetching || isLocked}
                     >A</Button>
                   </div>
                 </TableCell>
@@ -400,6 +484,7 @@ function TakeAttendance() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </Card>
     </div>
   );
