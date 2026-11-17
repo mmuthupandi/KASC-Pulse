@@ -17,6 +17,7 @@ import {
   QrCode,
   UserPlus,
   BookMarked,
+  Clock,
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,6 +57,7 @@ const adminNav = [
   { title: "Assign Subjects", url: "/admin/assign-subjects", icon: BookMarked },
   { title: "Departments", url: "/admin/departments", icon: Building2 },
   { title: "Subjects", url: "/admin/subjects", icon: BookOpen },
+  { title: "Timetable", url: "/admin/timetable", icon: Clock },
   { title: "Calendar", url: "/admin/calendar", icon: Calendar },
   { title: "Feedback", url: "/admin/feedback", icon: Bell },
   { title: "Reports", url: "/admin/reports", icon: FileBarChart },
@@ -65,7 +67,7 @@ const adminNav = [
 const hodNav = [
   { title: "Dashboard", url: "/hod", icon: LayoutDashboard },
   { title: "Approvals", url: "/hod/approvals", icon: ClipboardCheck },
-  { title: "Dept Logs", url: "/hod/logs", icon: FileBarChart },
+  { title: "Attendance", url: "/faculty/attendance", icon: QrCode },
   { title: "Condonation", url: "/hod/condonation", icon: GraduationCap },
   { title: "Profile", url: "/hod/profile", icon: User },
 ];

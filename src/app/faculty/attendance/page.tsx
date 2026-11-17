@@ -203,7 +203,7 @@ function TakeAttendance() {
             department: data.department || "B.Sc CS",
             marked: "present" as Status,
           };
-        }).sort((a, b) => a.rollNo.localeCompare(b.rollNo));
+        }).sort((a, b) => (a.rollNo || "").localeCompare(b.rollNo || "", undefined, { numeric: true, sensitivity: 'base' }));
 
         // 2. Load existing attendance for this slot
         const attSnap = await getDocs(
@@ -268,10 +268,12 @@ function TakeAttendance() {
           subjectName: selectedSubject?.name ?? subjectCode,
           studentId: row.id,
           studentName: row.name,
+          studentRollNo: row.rollNo || "",
           status: row.marked,
           facultyId: user.uid,
           facultyName: user.name ?? "",
           timestamp: new Date().toISOString(),
+          semester: (row as any).semester || (selectedSubject as any)?.sem || "6th",
         });
       });
       await batch.commit();

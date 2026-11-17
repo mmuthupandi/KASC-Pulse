@@ -40,3 +40,10 @@ dist-ssr
 *.sln
 *.sw?
 
+# Scratch & test scripts
+test-*.js
+test-*.cjs
+create-*.js
+create-*.cjs
+*.tsbuildinfo
+

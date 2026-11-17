@@ -49,28 +49,39 @@ function Login() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return toast.error("Please enter email and password");
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) return toast.error("Please enter email and password");
 
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
       const user = userCredential.user;
 
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        if (userData.role !== role) {
-          toast.error(`You are registered as a ${userData.role}, not a ${role}.`);
-          auth.signOut();
-          setIsLoading(false);
-          return;
-        }
+        toast.success("Welcome back!");
+        router.push(`/${userData.role || role}`);
+      } else {
+        // Fallback if document doesn't exist but auth succeeded
+        toast.success("Welcome back!");
+        router.push(`/${role}`);
       }
-
-      toast.success("Welcome back!");
-      router.push(`/${role}`);
     } catch (error: any) {
-      toast.error("Invalid credentials or account does not exist.");
+      console.error("LOGIN ERROR:", error);
+      let errorMsg = "Invalid email or password. Please check your credentials.";
+      if (error.code === "auth/invalid-email") {
+        errorMsg = "Please enter a valid email address.";
+      } else if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        errorMsg = "Invalid email or password. Please check your credentials.";
+      } else if (error.code === "auth/user-disabled") {
+        errorMsg = "This account has been disabled. Please contact your administrator.";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMsg = "Access temporarily disabled due to too many failed attempts. Try again later or reset password.";
+      } else if (error.code === "permission-denied") {
+        errorMsg = "Database permission error. Please contact the administrator.";
+      }
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -198,8 +209,8 @@ function Login() {
             <Tabs value={role} onValueChange={(v) => { setRole(v as any); setShowOtp(false); setOtp(""); }} className="mt-6">
               <TabsList className="grid w-full grid-cols-3 rounded-xl">
                 <TabsTrigger value="student" className="rounded-lg text-xs md:text-sm">Student</TabsTrigger>
-                <TabsTrigger value="parent" className="rounded-lg text-xs md:text-sm">Parent</TabsTrigger>
                 <TabsTrigger value="faculty" className="rounded-lg text-xs md:text-sm">Faculty</TabsTrigger>
+                <TabsTrigger value="parent" className="rounded-lg text-xs md:text-sm">Parent</TabsTrigger>
               </TabsList>
               
               <AnimatePresence mode="wait">
