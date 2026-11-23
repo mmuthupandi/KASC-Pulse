@@ -64,11 +64,21 @@ function AdminDashboard() {
         });
 
         const activeSubjects = new Set<string>();
-        weeklyTimetable.forEach(day => {
-          day.slots.forEach(slot => {
-            if (slot.subject && slot.subject !== "—") activeSubjects.add(slot.subject);
+        try {
+          const subSnap = await getDocs(collection(db, "subjects"));
+          subSnap.docs.forEach(d => {
+            if (d.data().name) activeSubjects.add(d.data().name);
           });
-        });
+        } catch (e) {
+          console.error("Failed to load subjects in admin overview", e);
+        }
+        if (activeSubjects.size === 0) {
+          weeklyTimetable.forEach(day => {
+            day.slots.forEach(slot => {
+              if (slot.subject && slot.subject !== "—") activeSubjects.add(slot.subject);
+            });
+          });
+        }
 
         const attendanceSnap = await getDocs(query(collection(db, "attendance")));
         const records = attendanceSnap.docs.map(d => d.data());

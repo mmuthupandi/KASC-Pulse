@@ -24,6 +24,15 @@ interface DayItem {
 }
 
 const SUBJECT_COLORS: Record<string, string> = {
+  // 6th Semester
+  "CORE PAPER 8 – COMPUTER NETWORKS":                            "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800",
+  "CORE PAPER 9 – PYTHON PROGRAMMING AND IoT":                   "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
+  "CORE PAPER 10 – ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING": "bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800",
+  "CORE PRACTICAL 6 – PYTHON PROGRAMMING AND IoT LAB":           "bg-teal-50 border-teal-200 dark:bg-teal-950/30 dark:border-teal-800",
+  "MAJOR ELECTIVE PAPER 2 - INTRODUCTION TO DATA SCIENCE":       "bg-sky-50 border-sky-200 dark:bg-sky-950/30 dark:border-sky-800",
+  "SKILL BASED SUBJECT 3 - BASICS OF INTELLECTUAL PROPERTY RIGHTS": "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
+  "PROJECT AND VIVA VOCE":                                       "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
+  // 5th Semester
   "Operating Systems":                   "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800",
   "Software Engineering & Testing":      "bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800",
   "Cloud Computing (Major Elective)":    "bg-sky-50 border-sky-200 dark:bg-sky-950/30 dark:border-sky-800",

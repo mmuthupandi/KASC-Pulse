@@ -14,6 +14,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Loader2, Lock, ShieldCheck } from "lucide-react";
 
 const ALL_SUBJECTS: Record<string, string> = {
+  // 6th Semester
+  "24USC608": "CORE PAPER 8 – COMPUTER NETWORKS",
+  "24USC609": "CORE PAPER 9 – PYTHON PROGRAMMING AND IoT",
+  "24USC610": "CORE PAPER 10 – ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING",
+  "24USC6CQ": "CORE PRACTICAL 6 – PYTHON PROGRAMMING AND IoT LAB",
+  "24USC6E2": "MAJOR ELECTIVE PAPER 2 - INTRODUCTION TO DATA SCIENCE",
+  "24UBI6S3": "SKILL BASED SUBJECT 3 - BASICS OF INTELLECTUAL PROPERTY RIGHTS",
+  "24USC6Z1": "PROJECT AND VIVA VOCE",
+  // 5th Semester
   "24USC506": "Operating Systems",
   "24USC505": "Software Engineering & Testing",
   "24USC5E1": "Cloud Computing",

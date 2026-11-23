@@ -11,7 +11,7 @@ import { Heatmap } from "@/components/heatmap";
 import { subjectAttendance, notifications, weeklyTimetable, makeHeatmap } from "@/lib/mock-data";
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/providers/AuthProvider";
-import { collection, query, where, onSnapshot, getDoc, doc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDoc, getDocs, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import { getDynamicGreeting } from "@/lib/utils";
@@ -35,14 +35,8 @@ function StudentDashboard() {
   const [isHoliday, setIsHoliday] = useState(false);
 
   const [overallPercentage, setOverallPercentage] = useState(100);
-  const [dynamicSubjectAttendance, setDynamicSubjectAttendance] = useState([
-    { subject: "Operating Systems",             percentage: 100 },
-    { subject: "Software Engineering & Testing", percentage: 100 },
-    { subject: "Cloud Computing",               percentage: 100 },
-    { subject: "Database Management System",    percentage: 100 },
-    { subject: "DBMS Lab",                      percentage: 100 },
-    { subject: "EDC",                           percentage: 100 },
-  ]);
+  const [subjectCount, setSubjectCount] = useState(0);
+  const [dynamicSubjectAttendance, setDynamicSubjectAttendance] = useState<Array<{ subject: string; percentage: number }>>([]);
   const [greeting, setGreeting] = useState("Welcome back!");
 
   useEffect(() => {
@@ -60,6 +54,12 @@ function StudentDashboard() {
   useEffect(() => {
     if (user?.uid) {
       const today = new Date().toISOString().split('T')[0];
+      const studentSem = user?.semester || "6th";
+      const studentDept = user?.department || "B.Sc. Computer Science";
+      const cleanDept = studentDept.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+      const cleanSem = studentSem.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+      const timetableDocId = `${cleanDept}_${cleanSem}`;
+
       const q = query(
         collection(db, "attendance"),
         where("studentId", "==", user.uid)
@@ -68,33 +68,70 @@ function StudentDashboard() {
       const unsubscribe = onSnapshot(q, async (snapshot) => {
         const allRecords = snapshot.docs.map(doc => doc.data());
         
-        if (allRecords.length > 0) {
-          const totalPresents = allRecords.filter(r => r.status === "present").length;
-          setOverallPercentage(Math.round((totalPresents / allRecords.length) * 100));
+        // Scope overall attendance calculation to current semester
+        const currentSemRecords = allRecords.filter(r => !r.semester || r.semester === studentSem);
+        if (currentSemRecords.length > 0) {
+          const totalPresents = currentSemRecords.filter(r => r.status === "present").length;
+          setOverallPercentage(Math.round((totalPresents / currentSemRecords.length) * 100));
         } else {
           setOverallPercentage(100);
         }
 
-        // Calculate subject-wise attendance based on fixed periods
-        const subjectStats: Record<number, { present: number, total: number, subject: string }> = {
-          1: { present: 0, total: 0, subject: "Operating Systems" },
-          2: { present: 0, total: 0, subject: "Software Engineering & Testing" },
-          3: { present: 0, total: 0, subject: "Cloud Computing" },
-          4: { present: 0, total: 0, subject: "Database Management System" },
-          5: { present: 0, total: 0, subject: "DBMS Lab" },
-        };
+        // Fetch subjects & timetable from Firestore in parallel
+        let activeSubjects: Array<{ name: string; code: string }> = [];
+        let timetableDays: any[] = [];
 
-        allRecords.forEach(r => {
-          if (subjectStats[r.period]) {
-            subjectStats[r.period].total++;
-            if (r.status === "present") subjectStats[r.period].present++;
+        try {
+          const [subSnap, ttSnap] = await Promise.all([
+            getDocs(collection(db, "subjects")),
+            getDoc(doc(db, "timetables", timetableDocId)),
+          ]);
+
+          // Filter subjects for student's active semester and department
+          const semSubs = subSnap.docs
+            .map(d => ({ id: d.id, ...d.data() } as any))
+            .filter(s => (s.sem === studentSem || s.semester === studentSem) && (!s.department || s.department === studentDept));
+
+          activeSubjects = semSubs.map(s => ({
+            name: s.name,
+            code: s.code || "",
+          }));
+
+          if (ttSnap.exists() && ttSnap.data()?.days) {
+            timetableDays = ttSnap.data().days;
           }
-        });
+        } catch (e) {
+          console.error("Error fetching subjects/timetable:", e);
+        }
 
-        const newSubjectData = Object.values(subjectStats).map(s => ({
-          subject: s.subject,
-          percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 100
-        }));
+        // Fallback to timetable unique subjects if subjects collection empty
+        if (activeSubjects.length === 0 && timetableDays.length > 0) {
+          const seen = new Set<string>();
+          timetableDays.forEach(day => {
+            day.slots?.forEach((slot: any) => {
+              if (slot.subject && slot.subject !== "Free Period" && !seen.has(slot.subject)) {
+                seen.add(slot.subject);
+                activeSubjects.push({ name: slot.subject, code: slot.code || "" });
+              }
+            });
+          });
+        }
+
+        setSubjectCount(activeSubjects.length);
+
+        // Calculate attendance per active semester subject
+        const newSubjectData = activeSubjects.map(s => {
+          const matching = allRecords.filter((r: any) => 
+            (r.semester === studentSem || !r.semester) &&
+            (r.subjectCode === s.code || r.subject === s.name || (r.subject && r.subject.toLowerCase() === s.name.toLowerCase()))
+          );
+          const total = matching.length;
+          const present = matching.filter((r: any) => r.status === "present").length;
+          return {
+            subject: s.name,
+            percentage: total > 0 ? Math.round((present / total) * 100) : 100
+          };
+        });
         setDynamicSubjectAttendance(newSubjectData);
 
         // Fetch today's day order from academicCalendar
@@ -107,35 +144,55 @@ function StudentDashboard() {
             if (calData.dayOrder && DAY_ORDER_MAP[calData.dayOrder] !== undefined) {
               dayOrder = calData.dayOrder;
             }
-            workingDay = calData.isWorkingDay;
+            if (calData.isWorkingDay !== undefined) {
+              workingDay = calData.isWorkingDay;
+            }
+          } else {
+            // Automatically determine Day Order by weekday if calendar entry not yet created
+            const dayOfWeek = new Date().getDay(); // 0 is Sunday
+            if (dayOfWeek === 0) {
+              workingDay = false;
+              dayOrder = "Sunday";
+            } else {
+              const dayOrders = ["I", "II", "III", "IV", "V", "VI"];
+              dayOrder = dayOrders[dayOfWeek - 1] || "I";
+            }
           }
         } catch (e) {
-          console.error(e);
+          console.error("Error fetching academicCalendar:", e);
         }
 
         if (!workingDay) {
           setIsHoliday(true);
-          setDayOrderLabel("Holiday");
+          setDayOrderLabel(dayOrder === "Sunday" ? "Weekend (Sunday)" : "Holiday");
           setTimetable([]);
           return;
         }
 
+        setIsHoliday(false);
         const dayIndex = DAY_ORDER_MAP[dayOrder] ?? 0;
         setDayOrderLabel(`Day Order ${dayOrder}`);
-        const todaySlots = weeklyTimetable[dayIndex].slots;
+
+        // Use Firestore timetable slots for this day, or fallback to mock schedule
+        let todaySlots: any[] = [];
+        if (timetableDays[dayIndex]?.slots) {
+          todaySlots = timetableDays[dayIndex].slots;
+        } else if (weeklyTimetable[dayIndex]?.slots) {
+          todaySlots = weeklyTimetable[dayIndex].slots;
+        }
 
         // Filter by date in memory to avoid needing a composite index in Firestore
         const attendanceRecords = allRecords.filter(r => r.date === today);
         
-        const mappedTimetable = todaySlots.map((slot, idx) => {
-          const period = idx + 1;
-          const record = attendanceRecords.find(r => r.period === period);
+        const mappedTimetable = todaySlots.map((slot: any, idx: number) => {
+          const period = slot.period || (idx + 1);
+          const record = attendanceRecords.find((r: any) => r.period === period);
           return {
             period,
-            time: slot.time,
-            subject: slot.subject,
-            room: "Class Room", // Mock room
-            faculty: slot.faculty,
+            time: slot.time || "10:00 - 11:00",
+            subject: slot.subject || "Free Period",
+            room: "Class Room",
+            faculty: slot.faculty || "Not Assigned",
             status: record ? record.status : "upcoming"
           };
         });
@@ -182,9 +239,9 @@ function StudentDashboard() {
             <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5" />
           </Card>
         </motion.div>
-        <StatCard title="Classes Attended Today" value={attended.toString()} hint="out of 5" icon={<CalendarCheck className="h-5 w-5" />} accent="green" />
-        <StatCard title="Classes Missed Today" value={missed.toString()} hint="out of 5" icon={<CalendarX className="h-5 w-5" />} accent="red" />
-        <StatCard title="Subjects" value="5" hint="This semester" icon={<BookOpen className="h-5 w-5" />} accent="yellow" />
+        <StatCard title="Classes Attended Today" value={attended.toString()} hint={`out of ${timetable.length || 5}`} icon={<CalendarCheck className="h-5 w-5" />} accent="green" />
+        <StatCard title="Classes Missed Today" value={missed.toString()} hint={`out of ${timetable.length || 5}`} icon={<CalendarX className="h-5 w-5" />} accent="red" />
+        <StatCard title="Subjects" value={(subjectCount || 7).toString()} hint="This semester" icon={<BookOpen className="h-5 w-5" />} accent="yellow" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

@@ -15,13 +15,22 @@ import { StatCard } from "@/components/stat-card";
 import { CheckCircle2, XCircle, Save, Search, Loader2, Lock } from "lucide-react";
 import { students as mockStudents } from "@/lib/mock-data";
 import { db } from "@/lib/firebase";
-import { writeBatch, doc, collection, query, where, getDocs } from "firebase/firestore";
+import { writeBatch, doc, collection, query, where, getDocs, getDoc } from "firebase/firestore";
 import { useAuth } from "@/providers/AuthProvider";
 import { weeklyTimetable } from "@/lib/mock-data";
 import { Info } from "lucide-react";
 
-// ─── Subject catalogue (single source of truth) ───────────────────────────────
+// ─── Subject catalogue (single source of truth with 6th and 5th sem) ─────────
 const ALL_SUBJECTS = [
+  // 6th Semester
+  { code: "24USC608", name: "CORE PAPER 8 – COMPUTER NETWORKS", short: "CN" },
+  { code: "24USC609", name: "CORE PAPER 9 – PYTHON PROGRAMMING AND IoT", short: "PYTHON" },
+  { code: "24USC610", name: "CORE PAPER 10 – ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING", short: "AI" },
+  { code: "24USC6CQ", name: "CORE PRACTICAL 6 – PYTHON PROGRAMMING AND IoT LAB", short: "LAB" },
+  { code: "24USC6E2", name: "MAJOR ELECTIVE PAPER 2 - INTRODUCTION TO DATA SCIENCE", short: "DS" },
+  { code: "24UBI6S3", name: "SKILL BASED SUBJECT 3 - BASICS OF INTELLECTUAL PROPERTY RIGHTS", short: "IPR" },
+  { code: "24USC6Z1", name: "PROJECT AND VIVA VOCE", short: "PROJECT" },
+  // 5th Semester
   { code: "24USC506", name: "Operating Systems",                short: "OS" },
   { code: "24USC505", name: "Software Engineering & Testing",   short: "SE" },
   { code: "24USC5E1", name: "Cloud Computing (Major Elective)", short: "CC" },
@@ -53,15 +62,49 @@ export default function Page() { return <TakeAttendance />; }
 
 function TakeAttendance() {
   const { user } = useAuth();
+  const [firestoreSubjects, setFirestoreSubjects] = useState<typeof ALL_SUBJECTS>([]);
+  const [timetableDays, setTimetableDays] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchSubjectsAndTimetable() {
+      try {
+        const [subSnap, ttSnap] = await Promise.all([
+          getDocs(collection(db, "subjects")),
+          getDoc(doc(db, "timetables", "b_sc__computer_science_6th")),
+        ]);
+
+        if (!subSnap.empty) {
+          const list = subSnap.docs.map(d => {
+            const data = d.data();
+            return {
+              code: data.code,
+              name: data.name,
+              short: data.short || data.code,
+            };
+          });
+          setFirestoreSubjects(list);
+        }
+
+        if (ttSnap.exists() && ttSnap.data()?.days) {
+          setTimetableDays(ttSnap.data().days);
+        }
+      } catch (e) {
+        console.error("Failed to load subjects/timetable from Firestore", e);
+      }
+    }
+    fetchSubjectsAndTimetable();
+  }, []);
+
+  const activeCatalog = firestoreSubjects.length > 0 ? firestoreSubjects : ALL_SUBJECTS;
 
   // ─── Derive allowed subjects from user.subjects ──────────────────────────
   const allowedSubjects = useMemo(() => {
     if (!user) return [];
-    // Tutors and admins can access all subjects
-    if (user.isTutor || user.role === "admin") return ALL_SUBJECTS;
+    // Tutors, HODs, and admins can access all subjects
+    if (user.isTutor || user.role === "admin" || user.role === "hod") return activeCatalog;
     if (!user.subjects?.length) return [];
-    return ALL_SUBJECTS.filter((s) => user.subjects!.includes(s.code));
-  }, [user]);
+    return activeCatalog.filter((s) => user.subjects!.includes(s.code));
+  }, [user, activeCatalog]);
 
 
   // ─── Form state ───────────────────────────────────────────────────────────
@@ -83,28 +126,29 @@ function TakeAttendance() {
   // ─── Derive allowed periods for a given subject based on Day Order ───────
   const allowedPeriods = useMemo(() => {
     if (!user) return [];
-    if (user.isTutor || user.role === "admin") return [1, 2, 3, 4, 5];
+    if (user.isTutor || user.role === "admin" || user.role === "hod") return [1, 2, 3, 4, 5];
     
     const periods = new Set<number>();
     const calDay = calendar[date];
     const romanMap: Record<string, number> = { "I": 0, "II": 1, "III": 2, "IV": 3, "V": 4, "VI": 5 };
+    const scheduleDays = timetableDays.length > 0 ? timetableDays : weeklyTimetable;
     
     if (calDay && calDay.dayOrder && romanMap[calDay.dayOrder] !== undefined) {
       const dayIndex = romanMap[calDay.dayOrder];
-      const daySchedule = weeklyTimetable[dayIndex];
-      daySchedule?.slots.forEach((slot, idx) => {
-        if (slot.code === subjectCode) periods.add(idx + 1);
+      const daySchedule = scheduleDays[dayIndex];
+      daySchedule?.slots?.forEach((slot: any, idx: number) => {
+        if (slot.code === subjectCode || slot.subject === subjectCode) periods.add(slot.period || (idx + 1));
       });
     } else {
       // Fallback: all possible periods for the week
-      weeklyTimetable.forEach((day) => {
-        day.slots.forEach((slot, idx) => {
-          if (slot.code === subjectCode) periods.add(idx + 1);
+      scheduleDays.forEach((day: any) => {
+        day.slots?.forEach((slot: any, idx: number) => {
+          if (slot.code === subjectCode || slot.subject === subjectCode) periods.add(slot.period || (idx + 1));
         });
       });
     }
-    return Array.from(periods).sort();
-  }, [subjectCode, user, date, calendar]);
+    return periods.size > 0 ? Array.from(periods).sort() : [1, 2, 3, 4, 5];
+  }, [subjectCode, user, date, calendar, timetableDays]);
 
   // Keep period in sync when allowed periods change
   useEffect(() => {
